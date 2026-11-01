@@ -1,0 +1,54 @@
+.fourier-page {
+  min-height: 100vh;
+  color: #172033;
+  background: #f3f6fb;
+  font: 15px/1.5 system-ui, -apple-system, 'Noto Sans TC', sans-serif;
+  letter-spacing: 0;
+  text-align: left;
+}
+
+.fourier-header { min-height: 52px; padding: 0 max(18px, calc((100% - 1408px) / 2)); display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid #d9dfeb; background: white; color: #5b667a; font-size: 13px; }
+.fourier-home { color: #2457c5; text-decoration: none; font-weight: 650; }
+.fourier-main { max-width: 1440px; margin: auto; padding: 22px 16px 40px; }
+.fourier-main h1 { margin: 0 0 8px; color: #172033; font-size: clamp(1.5rem, 3vw, 2.1rem); font-weight: 700; letter-spacing: 0; }
+.fourier-main h2 { margin: 0 0 12px; color: #172033; font-size: 1.02rem; font-weight: 700; letter-spacing: 0; }
+.fourier-intro { margin: 0 0 18px; color: #5b667a; line-height: 1.65; }
+.fourier-layout { display: grid; grid-template-columns: 330px minmax(0, 1fr); gap: 15px; align-items: start; }
+.fourier-panel, .fourier-chart { min-width: 0; padding: 15px; border: 1px solid #d9dfeb; border-radius: 14px; background: white; box-shadow: 0 3px 12px #1b2b4a08; }
+.fourier-control { margin-bottom: 14px; }
+.fourier-control > label { display: flex; justify-content: space-between; gap: 8px; margin-bottom: 7px; font-size: .91rem; font-weight: 650; }
+.fourier-control select, .fourier-control input[type=number] { width: 100%; padding: 8px; border: 1px solid #d9dfeb; border-radius: 8px; background: white; color: #172033; font: inherit; }
+.fourier-control input[type=range], .fourier-harmonic input[type=range] { width: 100%; accent-color: #2457c5; }
+.fourier-control input[type=number] { margin-top: 7px; }
+.fourier-page button { border: 0; border-radius: 8px; padding: 8px 11px; background: #2457c5; color: white; font: inherit; font-weight: 650; cursor: pointer; }
+.fourier-page .fourier-secondary { background: #e9eefb; color: #1d3d83; }
+.fourier-note { margin-top: 14px; padding: 10px 11px; border-left: 4px solid #2457c5; border-radius: 5px; background: #f5f7ff; font-size: .89rem; line-height: 1.6; }
+.fourier-harmonics { margin-top: 14px; padding-top: 13px; border-top: 1px solid #d9dfeb; }
+.fourier-harmonics > p { margin: -5px 0 10px; color: #5b667a; font-size: .82rem; line-height: 1.55; }
+.fourier-harmonic-list { display: grid; max-height: 460px; gap: 8px; overflow: auto; padding-right: 3px; }
+.fourier-harmonic { padding: 9px; border: 1px solid #e1e6ef; border-radius: 9px; }
+.fourier-harmonic-head { display: flex; justify-content: space-between; gap: 8px; font-size: .88rem; font-weight: 650; }
+.fourier-harmonic-head label { display: flex; align-items: center; gap: 6px; }
+.fourier-harmonic-head input, .fourier-display-controls input { accent-color: #2457c5; }
+.fourier-slider-label { display: block; margin: 5px 0; color: #5b667a; font-size: .78rem; }
+.fourier-plots { display: grid; gap: 14px; }
+.fourier-chart-heading { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.fourier-chart-heading h2 { margin: 0; }
+.fourier-page .fourier-help-button { width: 28px; height: 28px; min-width: 28px; padding: 0; border-radius: 50%; background: #eef1f7; color: #27344a; }
+.fourier-metrics { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; margin: 12px 0 8px; }
+.fourier-metrics > div { padding: 9px; border-radius: 8px; background: #f4f7ff; }
+.fourier-metrics span { display: block; color: #5b667a; font-size: .77rem; }
+.fourier-metrics b { font-size: 1rem; }
+.fourier-display-controls { display: flex; align-items: center; justify-content: flex-end; gap: 10px; min-height: 32px; margin-bottom: 5px; color: #5b667a; font-size: .78rem; }
+.fourier-display-controls label { display: flex; align-items: center; gap: 3px; white-space: nowrap; }
+.fourier-display-controls .fourier-secondary { padding: 6px 8px; font-size: .78rem; }
+.fourier-plot { display: block; width: 100%; height: 380px; overflow: visible; }
+.fourier-axis { display: flex; justify-content: space-between; padding: 0 2px; color: #5b667a; font-size: 12px; }
+.fourier-spectrum { display: block; width: 100%; height: 280px; }
+.fourier-overlay { position: fixed; z-index: 1000; inset: 0; display: grid; place-items: center; padding: 18px; background: #121c2e7a; }
+.fourier-dialog { width: min(460px, 100%); max-height: 80dvh; overflow: auto; padding: 20px; border: 1px solid #d9dfeb; border-radius: 14px; background: white; box-shadow: 0 18px 60px #0003; line-height: 1.7; }
+.fourier-dialog p { margin: 0 0 10px; }
+.fourier-dialog button { display: block; margin: 12px 0 0 auto; }
+
+@media (max-width: 1050px) { .fourier-layout { grid-template-columns: 1fr; } .fourier-plot { height: 330px; } }
+@media (max-width: 560px) { .fourier-main { padding: 14px 10px 28px; } .fourier-panel, .fourier-chart { padding: 12px; } .fourier-plot { height: 300px; } .fourier-spectrum { height: 240px; } .fourier-display-controls { justify-content: flex-start; flex-wrap: wrap; } .fourier-metrics { gap: 5px; } .fourier-metrics > div { padding: 7px; } .fourier-metrics b { font-size: .9rem; } .fourier-metrics span { font-size: .7rem; } }
