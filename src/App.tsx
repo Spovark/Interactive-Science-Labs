@@ -2,14 +2,18 @@ import './App.css'
 import FourierWaveLab from './FourierWaveLab'
 
 function App() {
-  if (window.location.pathname === '/fourier-wave-lab') {
+  const basePath = import.meta.env.BASE_URL
+  const labPath = `${basePath}fourier-wave-lab`
+  const currentPath = window.location.pathname.replace(/\/$/, '')
+
+  if (currentPath === labPath.replace(/\/$/, '')) {
     return <FourierWaveLab />
   }
 
   return (
     <>
       <header className="site-header">
-        <a className="brand" href="/" aria-label="互動科學實驗室首頁">
+        <a className="brand" href={basePath} aria-label="互動科學實驗室首頁">
           <span className="brand-mark" aria-hidden="true">∿</span>
           <span>互動科學實驗室</span>
         </a>
@@ -24,7 +28,7 @@ function App() {
             <p className="welcome-description">
               動手調整參數、觀察變化，在互動中探索科學原理。這裡是各種線上實驗的入口。
             </p>
-            <a className="primary-link" href="/fourier-wave-lab">
+            <a className="primary-link" href={labPath}>
               開始傅立葉波形實驗 <span aria-hidden="true">↗</span>
             </a>
           </div>
@@ -51,7 +55,7 @@ function App() {
             <p>選一個主題，開始動手探索。</p>
           </div>
 
-          <a className="lab-card" href="/fourier-wave-lab">
+          <a className="lab-card" href={labPath}>
             <div className="lab-card-icon" aria-hidden="true">∿</div>
             <div className="lab-card-content">
               <span className="lab-tag">訊號與波動</span>

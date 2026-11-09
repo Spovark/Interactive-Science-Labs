@@ -30,6 +30,7 @@ function makeSeries(points: number[], color: string, width: number, dash?: strin
 }
 
 function FourierWaveLab() {
+  const homePath = import.meta.env.BASE_URL
   const [wave, setWave] = useState<WaveType>('custom')
   const [terms, setTerms] = useState(DEFAULT_TERMS)
   const [periods, setPeriods] = useState(3)
@@ -82,7 +83,7 @@ function FourierWaveLab() {
   return (
     <div className="fourier-page">
       <header className="fourier-header">
-        <a href="/" className="fourier-home">← 返回實驗室首頁</a>
+        <a href={homePath} className="fourier-home">← 返回實驗室首頁</a>
         <span>互動科學實驗室</span>
       </header>
       <main className="fourier-main">
