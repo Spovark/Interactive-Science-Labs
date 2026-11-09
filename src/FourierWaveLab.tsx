@@ -1,4 +1,4 @@
-import { useMemo, useState, type ReactNode } from 'react'
+import { useMemo, useState, useSyncExternalStore, type ReactNode } from 'react'
 import FourierSpectrum from './FourierSpectrum'
 import MathText from './MathText'
 import './FourierWaveLab.css'
@@ -6,7 +6,8 @@ import './FourierWaveLab.css'
 type WaveType = 'custom' | 'square' | 'triangle' | 'saw' | 'pulse'
 
 const COLORS = ['#e07a35', '#168a83', '#8b5cf6', '#d94678', '#64748b', '#b08b21', '#3b82f6', '#65a30d']
-const DEFAULT_TERMS = 11
+const DEFAULT_TERMS = 6
+const STACKED_CHART_QUERY = '(max-width: 1050px)'
 const MAX_TERMS = 100
 const SAMPLE_COUNT = 700
 const COEFFICIENT_STEP = 0.005
@@ -71,8 +72,16 @@ function makeSeries(points: number[], color: string, width: number, dash?: strin
   return <path d={line} fill="none" stroke={color} strokeWidth={width} strokeDasharray={dash} strokeOpacity={opacity} vectorEffect="non-scaling-stroke" />
 }
 
+function subscribeToChartWidth(onChange: () => void) {
+  const query = window.matchMedia(STACKED_CHART_QUERY)
+  query.addEventListener('change', onChange)
+  return () => query.removeEventListener('change', onChange)
+}
+
 function FourierWaveLab() {
   const homePath = import.meta.env.BASE_URL
+  // In a narrow chart column a fixed aspect ratio would flatten the wave into a thin strip.
+  const fillChartHeight = useSyncExternalStore(subscribeToChartWidth, () => window.matchMedia(STACKED_CHART_QUERY).matches)
   const [wave, setWave] = useState<WaveType>('custom')
   const [terms, setTerms] = useState(DEFAULT_TERMS)
   const [termDraft, setTermDraft] = useState<string | null>(null)
@@ -159,10 +168,10 @@ function FourierWaveLab() {
           </aside>
           <section className="fourier-plots">
             <div className="fourier-chart"><div className="fourier-chart-heading"><h2>合成波形</h2><button className="fourier-help-button" onClick={() => setHelpTopic('wave')} aria-label="開啟合成波形說明">?</button></div>
-              <div className="fourier-metrics"><div><span>諧波項數</span><b>{terms}</b></div><div><span>最高頻率</span><b><MathText tex={`${terms}f_1`} /></b></div><div><span>RMS 誤差<button className="fourier-help-button fourier-help-small" onClick={() => setHelpTopic('rms')} aria-label="開啟 RMS 誤差說明">?</button></span><b className={data.error === null ? 'fourier-metric-undefined' : undefined}>{data.error === null ? '自訂波形不定義' : data.error.toFixed(3)}</b></div></div>
+              <div className="fourier-chart-toolbar"><div className="fourier-metrics"><div><span>RMS 誤差<button className="fourier-help-button fourier-help-small" onClick={() => setHelpTopic('rms')} aria-label="開啟 RMS 誤差說明">?</button></span><b className={data.error === null ? 'fourier-metric-undefined' : undefined}>{data.error === null ? '自訂波形不定義' : data.error.toFixed(3)}</b></div></div>
               <div className="fourier-display-controls">{terms <= 6 && terms <= Math.max(1, Math.floor((window.innerWidth - 580) / 42)) ? Array.from({ length: terms }, (_, i) => <label key={i}><input type="checkbox" checked={visible[i]} onChange={(event) => setVisible((current) => current.map((value, index) => index === i ? event.target.checked : value))} />{i + 1}</label>) : <button className="fourier-secondary" onClick={() => setVisible((current) => current.map((value, i) => i < terms ? !allVisible : value))}>{allVisible ? '隱藏所有成分' : '顯示所有成分'}</button>}
-                <label><input type="checkbox" checked={showTarget} disabled={wave === 'custom'} onChange={(event) => setShowTarget(event.target.checked)} />目標</label><label className="fourier-limit-toggle"><input type="checkbox" checked={showLimit} disabled={wave === 'custom'} onChange={(event) => setShowLimit(event.target.checked)} />極限</label></div>
-              <svg className="fourier-plot" viewBox="0 0 1000 300" role="img" aria-label="傅立葉波形圖"><path d="M0 30H1000M0 270H1000" stroke="#e9edf5" />{data.components.map((values, index) => visible[index] && makeSeries(values, COLORS[index % COLORS.length], 1.4))}<path d="M0 150H1000" stroke="#8a96aa" strokeWidth={1.5} vectorEffect="non-scaling-stroke" />{showTarget && wave !== 'custom' && makeSeries(data.goal, '#9ca3af', 2, '8 6')}{showLimit && wave !== 'custom' && makeSeries(data.goal, '#7c3aed', 6, undefined, 0.5)}{makeSeries(data.sum, '#2457c5', 3.2)}</svg>
+                <label><input type="checkbox" checked={showTarget} disabled={wave === 'custom'} onChange={(event) => setShowTarget(event.target.checked)} />目標</label><label className="fourier-limit-toggle"><input type="checkbox" checked={showLimit} disabled={wave === 'custom'} onChange={(event) => setShowLimit(event.target.checked)} />極限</label></div></div>
+              <svg className="fourier-plot" viewBox="0 0 1000 300" preserveAspectRatio={fillChartHeight ? 'none' : undefined} role="img" aria-label="傅立葉波形圖"><path d="M0 30H1000M0 270H1000" stroke="#e9edf5" />{data.components.map((values, index) => enabled[index] && visible[index] && makeSeries(values, COLORS[index % COLORS.length], 1.4))}<path d="M0 150H1000" stroke="#8a96aa" strokeWidth={1.5} vectorEffect="non-scaling-stroke" />{showTarget && wave !== 'custom' && makeSeries(data.goal, '#9ca3af', 2, '8 6')}{showLimit && wave !== 'custom' && makeSeries(data.goal, '#7c3aed', 6, undefined, 0.5)}{makeSeries(data.sum, '#2457c5', 3.2)}</svg>
               <div className="fourier-axis"><MathText tex={piMultipleTex(-periods)} /><MathText tex="0" /><MathText tex={piMultipleTex(periods)} /></div>
             </div>
             <div className="fourier-chart"><div className="fourier-chart-heading"><h2>頻譜</h2><button className="fourier-help-button" onClick={() => setHelpTopic('spectrum')} aria-label="開啟頻譜說明">?</button></div><FourierSpectrum amplitudes={Array.from({ length: terms }, (_, i) => enabled[i] ? Math.abs(coefficients[i]) : 0)} maxHarmonic={terms} /></div>
