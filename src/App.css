@@ -135,9 +135,9 @@ main {
   stroke-width: 2.5;
 }
 
-.wave-line-a { stroke: #aa3bff; }
-.wave-line-b { stroke: #2a9d8f; }
-.wave-line-c { stroke: #e28a42; }
+.wave-line-fundamental { stroke: var(--fourier-series-1); stroke-width: 1.5; }
+.wave-line-target { stroke: var(--fourier-target); stroke-width: 2.2; stroke-linecap: butt; stroke-dasharray: 8 6; }
+.wave-line-sum { stroke: var(--fourier-sum); stroke-width: 2; }
 
 .wave-legend {
   display: flex;
@@ -158,9 +158,9 @@ main {
   vertical-align: 1px;
 }
 
-.wave-legend span:nth-child(1) { --legend-color: #aa3bff; }
-.wave-legend span:nth-child(2) { --legend-color: #2a9d8f; }
-.wave-legend span:nth-child(3) { --legend-color: #e28a42; }
+.wave-legend span:nth-child(1) { --legend-color: var(--fourier-series-1); }
+.wave-legend span:nth-child(2) { --legend-color: var(--fourier-target); }
+.wave-legend span:nth-child(3) { --legend-color: var(--fourier-sum); }
 
 .ticks {
   position: relative;
@@ -242,6 +242,15 @@ main {
   background: var(--accent-bg);
   color: var(--accent);
   font-size: 33px;
+}
+
+.lab-card-wave {
+  width: 76%;
+  height: 76%;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.6;
+  stroke-linejoin: round;
 }
 
 .lab-tag {

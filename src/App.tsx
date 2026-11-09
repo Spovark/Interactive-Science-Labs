@@ -1,5 +1,6 @@
 import './App.css'
 import FourierWaveLab from './FourierWaveLab'
+import { SquareWaveArt, SquareWaveIcon } from './SquareWavePreview'
 
 function App() {
   const basePath = import.meta.env.BASE_URL
@@ -34,13 +35,8 @@ function App() {
           </div>
           <div className="wave-art" aria-hidden="true">
             <span className="wave-label">WAVE 01</span>
-            <svg viewBox="0 0 380 190" role="presentation">
-              <path className="wave-grid" d="M0 38H380M0 95H380M0 152H380M38 0V190M114 0V190M190 0V190M266 0V190M342 0V190" />
-              <path className="wave-line wave-line-a" d="M0 95 C22 95 23 43 47 43 S70 147 95 147 S118 43 142 43 S166 147 190 147 S213 43 237 43 S261 147 285 147 S309 43 333 43 S356 95 380 95" />
-              <path className="wave-line wave-line-b" d="M0 95 C22 95 23 64 47 64 S70 126 95 126 S118 64 142 64 S166 126 190 126 S213 64 237 64 S261 126 285 126 S309 64 333 64 S356 95 380 95" />
-              <path className="wave-line wave-line-c" d="M0 95 C22 95 23 80 47 80 S70 110 95 110 S118 80 142 80 S166 110 190 110 S213 80 237 80 S261 110 285 110 S309 80 333 80 S356 95 380 95" />
-            </svg>
-            <div className="wave-legend"><span>基頻</span><span>諧波</span><span>合成波</span></div>
+            <SquareWaveArt />
+            <div className="wave-legend"><span>基頻</span><span>目標方波</span><span>合成波</span></div>
           </div>
         </section>
 
@@ -56,7 +52,7 @@ function App() {
           </div>
 
           <a className="lab-card" href={labPath}>
-            <div className="lab-card-icon" aria-hidden="true">∿</div>
+            <div className="lab-card-icon" aria-hidden="true"><SquareWaveIcon /></div>
             <div className="lab-card-content">
               <span className="lab-tag">訊號與波動</span>
               <h3>傅立葉波形實驗室</h3>

@@ -1,0 +1,99 @@
+.lab-page {
+  --lab-bg: #f7f5fb;
+  --lab-surface: white;
+  --lab-text: #1c1826;
+  --lab-muted: #6b6375;
+  --lab-border: #e2dfe9;
+  --lab-border-soft: #ebe9f0;
+  --lab-input-line: #cfcad9;
+  --lab-accent: #9333ea;
+  --lab-soft-bg: #f0e7fc;
+  --lab-soft-text: #6b21a8;
+  --lab-note-bg: #faf5ff;
+  --lab-metric-bg: #f7f2fd;
+  --lab-help-bg: #f1edf7;
+  --lab-help-text: #3b2f4a;
+  --lab-status-bg: #f3e8ff;
+  --lab-status-text: #6b21a8;
+  --lab-warning-bg: #fff4e0;
+  --lab-warning-text: #8a4b00;
+  --lab-overlay: #1a12267a;
+  --lab-card-shadow: 0 3px 12px #2a1b4a08;
+  --lab-dialog-shadow: 0 18px 60px #0003;
+  --lab-grid: #ece9f2;
+  --lab-axis: #8b8497;
+  color-scheme: light dark;
+  min-height: 100vh;
+  color: var(--lab-text);
+  background: var(--lab-bg);
+  font: 15px/1.5 system-ui, -apple-system, 'Noto Sans TC', sans-serif;
+  letter-spacing: 0;
+  text-align: left;
+}
+
+@media (prefers-color-scheme: dark) {
+  .lab-page {
+    --lab-bg: #16171d;
+    --lab-surface: #1f1e29;
+    --lab-text: #f3f4f6;
+    --lab-muted: #a7a9b5;
+    --lab-border: #33323f;
+    --lab-border-soft: #2c2b37;
+    --lab-input-line: #4d4b5b;
+    --lab-accent: #c084fc;
+    --lab-soft-bg: #2f2743;
+    --lab-soft-text: #dcc4fb;
+    --lab-note-bg: #272136;
+    --lab-metric-bg: #282532;
+    --lab-help-bg: #2e2b3a;
+    --lab-help-text: #e4dff0;
+    --lab-status-bg: #2d2243;
+    --lab-status-text: #dcc4fb;
+    --lab-warning-bg: #3b2c12;
+    --lab-warning-text: #ffd08a;
+    --lab-overlay: #000000a6;
+    --lab-card-shadow: 0 3px 12px #00000040;
+    --lab-dialog-shadow: 0 18px 60px #00000080;
+    --lab-grid: #2d2c39;
+    --lab-axis: #8f8c9c;
+  }
+}
+
+.lab-header { min-height: 52px; padding: 0 max(18px, calc((100% - 1408px) / 2)); display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid var(--lab-border); background: var(--lab-surface); color: var(--lab-muted); font-size: 13px; }
+.lab-home { color: var(--lab-accent); text-decoration: none; font-weight: 650; }
+.lab-main { max-width: 1440px; margin: auto; padding: 22px 16px 40px; }
+.lab-main h1 { margin: 0 0 8px; color: var(--lab-text); font-size: clamp(1.5rem, 3vw, 2.1rem); font-weight: 700; letter-spacing: 0; }
+.lab-main h2 { margin: 0 0 12px; color: var(--lab-text); font-size: 1.02rem; font-weight: 700; letter-spacing: 0; }
+.lab-intro { margin: 0 0 18px; color: var(--lab-muted); line-height: 1.65; }
+.lab-layout { display: grid; grid-template-columns: 330px minmax(0, 1fr); gap: 15px; align-items: start; }
+.lab-panel, .lab-chart { min-width: 0; padding: 15px; border: 1px solid var(--lab-border); border-radius: 14px; background: var(--lab-surface); box-shadow: var(--lab-card-shadow); }
+.lab-panel { position: sticky; top: 8px; box-sizing: border-box; max-height: max(320px, calc(100dvh - 196px)); overflow-y: auto; overscroll-behavior: contain; }
+.lab-control { margin-bottom: 14px; }
+.lab-control > label { display: flex; justify-content: space-between; gap: 8px; margin-bottom: 7px; font-size: .91rem; font-weight: 650; }
+.lab-control-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 7px; font-size: .91rem; font-weight: 650; }
+.lab-number-input { width: calc(3ch + 22px); padding: 0; border: 0; border-bottom: 1px solid var(--lab-input-line); background: transparent; color: inherit; font: inherit; text-align: right; }
+.lab-number-input::-webkit-inner-spin-button { margin-left: 4px; opacity: 1; }
+.lab-number-input:focus { border-bottom-color: var(--lab-accent); outline: none; }
+.lab-control select { width: 100%; padding: 8px; border: 1px solid var(--lab-border); border-radius: 8px; background: var(--lab-surface); color: var(--lab-text); font: inherit; }
+.lab-control input[type=range] { width: 100%; accent-color: var(--lab-accent); }
+.lab-page button { border: 0; border-radius: 8px; padding: 8px 11px; background: var(--lab-accent); color: var(--lab-surface); font: inherit; font-weight: 650; cursor: pointer; }
+.lab-page .lab-secondary { background: var(--lab-soft-bg); color: var(--lab-soft-text); }
+.lab-note { margin-top: 14px; padding: 10px 11px; border-left: 4px solid var(--lab-accent); border-radius: 5px; background: var(--lab-note-bg); font-size: .89rem; line-height: 1.6; }
+.lab-plots { display: grid; gap: 14px; }
+.lab-chart-heading { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.lab-chart-heading h2 { margin: 0; }
+.lab-page .lab-help-button { width: 28px; height: 28px; min-width: 28px; padding: 0; border-radius: 50%; background: var(--lab-help-bg); color: var(--lab-help-text); }
+.lab-page .lab-help-small { width: 18px; height: 18px; min-width: 18px; margin-left: 5px; font-size: .72rem; line-height: 18px; vertical-align: middle; }
+.lab-metrics { display: flex; gap: 8px; }
+.lab-metrics > div { min-width: 96px; padding: 6px 12px; border-radius: 8px; background: var(--lab-metric-bg); }
+.lab-metrics > div > span { display: block; color: var(--lab-muted); font-size: .77rem; }
+.lab-metrics b { font-size: 1rem; }
+.lab-overlay { position: fixed; z-index: 1000; inset: 0; display: grid; place-items: center; padding: 18px; background: var(--lab-overlay); }
+.lab-dialog { width: min(460px, 100%); max-height: 80dvh; overflow: auto; padding: 20px; border: 1px solid var(--lab-border); border-radius: 14px; background: var(--lab-surface); box-shadow: var(--lab-dialog-shadow); line-height: 1.7; }
+.lab-dialog h2 { margin: 0 0 10px; color: var(--lab-text); font-size: 1.15rem; font-weight: 700; letter-spacing: 0; }
+.lab-dialog p { margin: 0 0 10px; }
+.lab-dialog button { display: block; margin: 12px 0 0 auto; }
+.lab-dialog .katex-display { margin: 12px 0; }
+
+@media (max-width: 1050px) { .lab-layout { grid-template-columns: min(42%, 330px) minmax(0, 1fr); } }
+@media (max-width: 560px) { .lab-main { padding: 14px 8px 28px; } .lab-layout { gap: 8px; } .lab-plots { gap: 8px; } .lab-panel, .lab-chart { padding: 8px; } .lab-metrics { flex-direction: column; width: 100%; gap: 4px; } .lab-metrics > div { padding: 4px 7px; } .lab-metrics b { font-size: .9rem; } .lab-metrics > div > span { font-size: .7rem; } }

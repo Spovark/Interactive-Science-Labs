@@ -6,9 +6,10 @@ const HARMONIC_TICK_STEPS = [1, 2, 5, 10, 20]
 const MIN_TICK_SPACING = 32
 const MAX_BAR_WIDTH = 56
 const MARGIN = { left: 48, right: 18, top: 8, bottom: 42 }
-const TEXT_COLOR = '#172033'
-const GRID_COLOR = '#e9edf5'
-const AXIS_COLOR = '#bfc8d9'
+const TEXT_COLOR = 'var(--lab-text)'
+const GRID_COLOR = 'var(--lab-grid)'
+const AXIS_COLOR = 'var(--fourier-spectrum-axis)'
+const BAR_COLOR = 'var(--fourier-bar)'
 
 type FourierSpectrumProps = {
   amplitudes: number[]
@@ -54,7 +55,7 @@ function FourierSpectrum({ amplitudes, maxHarmonic }: FourierSpectrumProps) {
         </g>
       ))}
       {amplitudes.map((amplitude, index) => amplitude > 0 && (
-        <rect key={index} x={xFor(index + 1) - barWidth / 2} y={yFor(amplitude)} width={barWidth} height={bottom - yFor(amplitude)} fill="#4775d1">
+        <rect key={index} x={xFor(index + 1) - barWidth / 2} y={yFor(amplitude)} width={barWidth} height={bottom - yFor(amplitude)} fill={BAR_COLOR}>
           <title>{`第 ${index + 1} 諧波：${amplitude.toFixed(3)}`}</title>
         </rect>
       ))}
