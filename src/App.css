@@ -13,26 +13,39 @@
   gap: 10px;
   color: var(--text-h);
   text-decoration: none;
-  font-size: 15px;
+  font-size: 23px;
   font-weight: 650;
   letter-spacing: 0;
 }
 
 .brand-mark {
   display: grid;
-  width: 30px;
-  height: 30px;
+  width: 38px;
+  height: 38px;
   place-items: center;
-  border-radius: 9px;
+  border-radius: 10px;
   background: var(--accent-bg);
   color: var(--accent);
-  font-size: 23px;
+  font-size: 22px;
+  font-weight: 700;
 }
 
 .header-note,
 .site-footer {
   color: var(--text);
   font-size: 13px;
+}
+
+.header-note {
+  display: grid;
+  line-height: 1.4;
+  text-align: right;
+}
+
+.header-note strong {
+  color: var(--text-h);
+  font-size: 18px;
+  font-weight: 650;
 }
 
 main {
@@ -97,28 +110,38 @@ main {
   outline-offset: 4px;
 }
 
-.wave-art {
-  position: relative;
-  padding: 26px 18px 14px;
+.hero-art {
+  display: grid;
+  box-sizing: border-box;
+  padding: 16px 18px;
   border: 1px solid var(--border);
   border-radius: 12px;
   background: var(--art-bg);
   overflow: hidden;
 }
 
-.wave-label {
-  position: absolute;
-  top: 13px;
-  left: 17px;
-  color: var(--text);
-  font: 600 10px/1 var(--mono);
-  letter-spacing: 1.1px;
+/* All scenes share one grid cell, so the panel keeps its height when the scene changes. */
+.hero-art-scene {
+  grid-area: 1 / 1;
+  opacity: 0;
+  transition: opacity 500ms ease;
 }
 
-.wave-art svg {
+.hero-art-scene[data-active='true'] {
+  opacity: 1;
+}
+
+.hero-art-label {
+  display: block;
+  color: var(--text);
+  font-size: 11px;
+  font-weight: 650;
+}
+
+.hero-art svg {
   display: block;
   width: 100%;
-  margin-top: 6px;
+  margin-top: 8px;
   overflow: visible;
 }
 
@@ -139,28 +162,12 @@ main {
 .wave-line-target { stroke: var(--fourier-target); stroke-width: 2.2; stroke-linecap: butt; stroke-dasharray: 8 6; }
 .wave-line-sum { stroke: var(--fourier-sum); stroke-width: 2; }
 
-.wave-legend {
-  display: flex;
-  justify-content: flex-end;
-  gap: 14px;
-  color: var(--text);
-  font-size: 11px;
-}
-
-.wave-legend span::before {
-  content: '';
-  display: inline-block;
-  width: 7px;
-  height: 7px;
-  margin-right: 5px;
-  border-radius: 50%;
-  background: var(--legend-color);
-  vertical-align: 1px;
-}
-
-.wave-legend span:nth-child(1) { --legend-color: var(--fourier-series-1); }
-.wave-legend span:nth-child(2) { --legend-color: var(--fourier-target); }
-.wave-legend span:nth-child(3) { --legend-color: var(--fourier-sum); }
+.collision-track { fill: none; stroke: var(--text); stroke-width: 2; }
+.collision-cart-a { fill: var(--momentum-a); }
+.collision-cart-b { fill: var(--momentum-b); }
+.collision-arrow { fill: none; stroke-width: 2.5; stroke-linecap: round; stroke-linejoin: round; }
+.collision-arrow-a { stroke: var(--momentum-a); }
+.collision-arrow-b { stroke: var(--momentum-b); }
 
 .ticks {
   position: relative;
@@ -227,10 +234,32 @@ main {
   transition: border-color 160ms ease, box-shadow 160ms ease, transform 160ms ease;
 }
 
+.lab-card + .lab-card {
+  margin-top: 12px;
+}
+
 .lab-card:hover {
   transform: translateY(-2px);
   border-color: var(--accent-border);
   box-shadow: var(--shadow);
+}
+
+/* On tall screens the list is already in view, so the button would otherwise seem to do nothing. */
+.labs-section:target .lab-card {
+  animation: lab-card-notice 1.1s ease 150ms;
+}
+
+@keyframes lab-card-notice {
+  35% {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px var(--accent-bg);
+  }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  html:has(.welcome) {
+    scroll-behavior: smooth;
+  }
 }
 
 .lab-card-icon {
@@ -297,12 +326,15 @@ main {
   }
   .welcome h1 { font-size: 38px; }
   .welcome-description { font-size: 15px; }
-  .wave-art { max-width: 500px; width: 100%; justify-self: center; }
+  .hero-art { max-width: 500px; width: 100%; justify-self: center; }
   .labs-section { padding: 31px 26px 40px; }
 }
 
 @media (max-width: 480px) {
+  .brand { font-size: 20px; }
+  .brand-mark { width: 34px; height: 34px; font-size: 19px; }
   .header-note { font-size: 11px; }
+  .header-note strong { font-size: 15px; }
   .welcome { padding-inline: 20px; }
   .welcome h1 { font-size: 33px; }
   .section-heading { align-items: start; flex-direction: column; gap: 8px; }

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState, useSyncExternalStore, type ReactNode } from 'react'
+import { Fragment, useEffect, useMemo, useRef, useState, useSyncExternalStore, type ReactNode } from 'react'
 import FourierSpectrum from './FourierSpectrum'
 import MathText from './MathText'
 import './LabPage.css'
@@ -7,10 +7,19 @@ import './FourierWaveLab.css'
 type WaveType = 'custom' | 'square' | 'triangle' | 'saw' | 'pulse'
 
 const SERIES_COLORS = Array.from({ length: 8 }, (_, i) => `var(--fourier-series-${i + 1})`)
-const DEFAULT_TERMS = 6
+const DEFAULT_TERMS = 10
 const STACKED_CHART_QUERY = '(max-width: 1050px)'
 const MAX_TERMS = 100
 const MAX_PERIODS = 4
+const MAX_HARMONIC_TOGGLES = 11
+// Measured widths of the chart toolbar's parts, used to predict how its controls wrap.
+const TOOLBAR_METRICS_WIDTH = 135
+const CONTROLS_MIN_WIDTH = 260 // Matches the flex-basis of .fourier-display-controls.
+const CONTROLS_MAX_ROWS = 2
+const CONTROLS_GAP = 8
+const HARMONIC_TOGGLE_WIDTH = 30
+const TWO_DIGIT_TOGGLE_WIDTH = 38
+const REFERENCE_TOGGLES_WIDTH = 106
 const MIN_PANEL_HEIGHT = 320
 const PANEL_BOTTOM_GAP = 16
 const PANEL_STICKY_TOP = 8
@@ -81,6 +90,24 @@ function makeSeries(points: number[], color: string, width: number, dash?: strin
   return <path d={line} fill="none" stroke={color} strokeWidth={width} strokeDasharray={dash} strokeOpacity={opacity} vectorEffect="non-scaling-stroke" />
 }
 
+function displayControlRows(terms: number, toolbarWidth: number) {
+  const besideMetrics = toolbarWidth - TOOLBAR_METRICS_WIDTH
+  const width = besideMetrics >= CONTROLS_MIN_WIDTH ? besideMetrics : toolbarWidth
+  const items = [...Array.from({ length: terms }, (_, i) => (i < 9 ? HARMONIC_TOGGLE_WIDTH : TWO_DIGIT_TOGGLE_WIDTH)), REFERENCE_TOGGLES_WIDTH]
+  let rows = 1
+  let used = 0
+  for (const item of items) {
+    const next = used === 0 ? item : used + CONTROLS_GAP + item
+    if (used > 0 && next > width) {
+      rows += 1
+      used = item
+    } else {
+      used = next
+    }
+  }
+  return rows
+}
+
 function subscribeToChartWidth(onChange: () => void) {
   const query = window.matchMedia(STACKED_CHART_QUERY)
   query.addEventListener('change', onChange)
@@ -91,6 +118,16 @@ function FourierWaveLab() {
   const homePath = import.meta.env.BASE_URL
   // In a narrow chart column a fixed aspect ratio would flatten the wave into a thin strip.
   const fillChartHeight = useSyncExternalStore(subscribeToChartWidth, () => window.matchMedia(STACKED_CHART_QUERY).matches)
+  const toolbarRef = useRef<HTMLDivElement>(null)
+  const [toolbarWidth, setToolbarWidth] = useState(Number.POSITIVE_INFINITY)
+
+  useEffect(() => {
+    if (!toolbarRef.current) return
+    const observer = new ResizeObserver(([entry]) => setToolbarWidth(entry.contentRect.width))
+    observer.observe(toolbarRef.current)
+    return () => observer.disconnect()
+  }, [])
+
   const [wave, setWave] = useState<WaveType>('custom')
   const [terms, setTerms] = useState(DEFAULT_TERMS)
   const [termDraft, setTermDraft] = useState<string | null>(null)
@@ -178,12 +215,13 @@ function FourierWaveLab() {
   const isCustomized = wave !== 'custom' && Array.from({ length: terms }, (_, i) => i).some((i) => Math.abs((enabled[i] ? coefficients[i] : 0) - initialCoefficient(wave, i + 1)) > COEFFICIENT_STEP / 2 + 1e-9)
 
   const allVisible = visible.slice(0, terms).every(Boolean)
+  const showHarmonicToggles = terms <= MAX_HARMONIC_TOGGLES && displayControlRows(terms, toolbarWidth) <= CONTROLS_MAX_ROWS
 
   return (
     <div className="lab-page fourier-page">
       <header className="lab-header">
         <a href={homePath} className="lab-home">← 返回實驗室首頁</a>
-        <span>互動科學實驗室</span>
+        <span>Spovark</span>
       </header>
       <main className="lab-main">
         <h1>傅立葉波形實驗室</h1>
@@ -203,10 +241,10 @@ function FourierWaveLab() {
           </aside>
           <section className="lab-plots">
             <div className="lab-chart"><div className="lab-chart-heading"><h2>合成波形</h2><button className="lab-help-button" onClick={() => setHelpTopic('wave')} aria-label="開啟合成波形說明">?</button></div>
-              <div className="fourier-chart-toolbar"><div className="lab-metrics"><div><span>RMS 誤差<button className="lab-help-button lab-help-small" onClick={() => setHelpTopic('rms')} aria-label="開啟 RMS 誤差說明">?</button></span><b className={data.error === null ? 'fourier-metric-undefined' : undefined}>{data.error === null ? '自訂波形不定義' : data.error.toFixed(3)}</b></div></div>
-              <div className="fourier-display-controls">{terms <= 6 && terms <= Math.max(1, Math.floor((window.innerWidth - 580) / 42)) ? Array.from({ length: terms }, (_, i) => <label key={i}><input type="checkbox" checked={visible[i]} onChange={(event) => setVisible((current) => current.map((value, index) => index === i ? event.target.checked : value))} />{i + 1}</label>) : <button className="lab-secondary" onClick={() => setVisible((current) => current.map((value, i) => i < terms ? !allVisible : value))}>{allVisible ? '隱藏所有成分' : '顯示所有成分'}</button>}
-                <label><input type="checkbox" checked={showTarget} disabled={wave === 'custom'} onChange={(event) => setShowTarget(event.target.checked)} />目標</label><label className="fourier-limit-toggle"><input type="checkbox" checked={showLimit} disabled={wave === 'custom'} onChange={(event) => setShowLimit(event.target.checked)} />極限</label></div></div>
-              <svg className="fourier-plot" viewBox="0 0 1000 300" preserveAspectRatio={fillChartHeight ? 'none' : undefined} role="img" aria-label="傅立葉波形圖"><path d="M0 30H1000M0 270H1000" stroke="var(--lab-grid)" />{data.components.map((values, index) => enabled[index] && visible[index] && makeSeries(values, SERIES_COLORS[index % SERIES_COLORS.length], 1.4))}<path d="M0 150H1000" stroke="var(--lab-axis)" strokeWidth={1.5} vectorEffect="non-scaling-stroke" />{showTarget && wave !== 'custom' && makeSeries(data.goal, 'var(--fourier-target)', 2, '8 6')}{showLimit && wave !== 'custom' && makeSeries(data.goal, 'var(--fourier-limit)', 6, undefined, 0.5)}{makeSeries(data.sum, 'var(--fourier-sum)', 3.2)}</svg>
+              <div className="fourier-chart-toolbar" ref={toolbarRef}><div className="lab-metrics"><div><span>RMS 誤差<button className="lab-help-button lab-help-small" onClick={() => setHelpTopic('rms')} aria-label="開啟 RMS 誤差說明">?</button></span><b className={data.error === null ? 'fourier-metric-undefined' : undefined}>{data.error === null ? '自訂波形不定義' : data.error.toFixed(3)}</b></div></div>
+              <div className="fourier-display-controls">{showHarmonicToggles ? Array.from({ length: terms }, (_, i) => <label key={i}><input type="checkbox" checked={visible[i]} onChange={(event) => setVisible((current) => current.map((value, index) => index === i ? event.target.checked : value))} />{i + 1}</label>) : <button className="lab-secondary" onClick={() => setVisible((current) => current.map((value, i) => i < terms ? !allVisible : value))}>{allVisible ? '隱藏所有成分' : '顯示所有成分'}</button>}
+                <div className="fourier-reference-toggles"><label><input type="checkbox" checked={showTarget} disabled={wave === 'custom'} onChange={(event) => setShowTarget(event.target.checked)} />目標</label><label className="fourier-limit-toggle"><input type="checkbox" checked={showLimit} disabled={wave === 'custom'} onChange={(event) => setShowLimit(event.target.checked)} />極限</label></div></div></div>
+              <svg className="fourier-plot" viewBox="0 0 1000 300" preserveAspectRatio={fillChartHeight ? 'none' : undefined} role="img" aria-label="傅立葉波形圖"><path d="M0 30H1000M0 270H1000" stroke="var(--lab-grid)" />{data.components.map((values, index) => enabled[index] && visible[index] && <Fragment key={index}>{makeSeries(values, SERIES_COLORS[index % SERIES_COLORS.length], 1.4)}</Fragment>)}<path d="M0 150H1000" stroke="var(--lab-axis)" strokeWidth={1.5} vectorEffect="non-scaling-stroke" />{showTarget && wave !== 'custom' && makeSeries(data.goal, 'var(--fourier-target)', 2, '8 6')}{showLimit && wave !== 'custom' && makeSeries(data.goal, 'var(--fourier-limit)', 6, undefined, 0.5)}{makeSeries(data.sum, 'var(--fourier-sum)', 3.2)}</svg>
               <div className="fourier-axis"><MathText tex={piMultipleTex(-periods)} /><MathText tex="0" /><MathText tex={piMultipleTex(periods)} /></div>
             </div>
             <div className="lab-chart"><div className="lab-chart-heading"><h2>頻譜</h2><button className="lab-help-button" onClick={() => setHelpTopic('spectrum')} aria-label="開啟頻譜說明">?</button></div><FourierSpectrum amplitudes={Array.from({ length: terms }, (_, i) => enabled[i] ? Math.abs(coefficients[i]) : 0)} maxHarmonic={terms} /></div>

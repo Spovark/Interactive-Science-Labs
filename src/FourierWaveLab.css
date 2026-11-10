@@ -26,7 +26,8 @@
 .lab-metrics .fourier-metric-undefined { font-size: .88rem; }
 .fourier-harmonic-head .katex { font-size: 1.3em; }
 .fourier-axis .katex { font-size: 1.15em; }
-.fourier-display-controls { display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: 10px; min-height: 32px; color: var(--lab-muted); font-size: .78rem; }
+.fourier-display-controls { display: flex; flex: 1 1 260px; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: 6px 8px; min-height: 32px; color: var(--lab-muted); font-size: .78rem; }
+.fourier-reference-toggles { display: flex; align-items: center; gap: 10px; }
 .fourier-display-controls label { display: flex; align-items: center; gap: 3px; white-space: nowrap; }
 .fourier-display-controls .fourier-limit-toggle { color: var(--fourier-limit); font-weight: 650; }
 .fourier-display-controls .lab-secondary { padding: 6px 8px; font-size: .78rem; }

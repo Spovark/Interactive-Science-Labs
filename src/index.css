@@ -22,6 +22,8 @@
   --fourier-series-6: #b08b21;
   --fourier-series-7: #0ea5e9;
   --fourier-series-8: #65a30d;
+  --momentum-a: #d9692a;
+  --momentum-b: #0b8f84;
 
   --sans: system-ui, 'Segoe UI', Roboto, sans-serif;
   --heading: system-ui, 'Segoe UI', Roboto, sans-serif;
@@ -67,6 +69,8 @@
     --fourier-series-6: #d4ae45;
     --fourier-series-7: #38bdf8;
     --fourier-series-8: #8fcb3a;
+    --momentum-a: #d4742f;
+    --momentum-b: #1ea396;
   }
 
   #social .button-icon {
