@@ -67,7 +67,7 @@ function MomentumLab() {
         <span>Spovark</span>
       </header>
       <main className="lab-main">
-        <h1>動能與動量實驗室</h1>
+        <h1>動能與動量</h1>
         <p className="lab-intro">拖曳滑車和圖上的點，觀察動量和動能在運動與碰撞中如何變化。</p>
         <nav className="momentum-tabs" aria-label="實驗主題">
           {SCENES.map((item) => <button key={item.id} className="momentum-tab" aria-current={scene === item.id ? 'true' : undefined} onClick={() => setScene(item.id)}>{item.label}</button>)}
