@@ -5,16 +5,19 @@ import HeroArt from './HeroArt'
 import MomentumLab from './MomentumLab'
 import { CollisionArt, MomentumCartIcon } from './MomentumPreview'
 import { SquareWaveArt, SquareWaveIcon } from './SquareWavePreview'
+import VerticalCircleLab from './VerticalCircleLab'
+import { VerticalCircleArt, VerticalCircleIcon } from './VerticalCirclePreview'
 
 const basePath = import.meta.env.BASE_URL
 const labPath = `${basePath}fourier-wave-lab`
 const momentumLabPath = `${basePath}momentum-energy-lab`
+const verticalCircleLabPath = `${basePath}vertical-circle-lab`
 
 const LABS = [
   {
     path: labPath,
     tag: '波動學',
-    title: '傅立葉波形實驗室',
+    title: '諧波疊加',
     text: '調整不同頻率的諧波，觀察它們如何組合成週期波形。',
     Icon: SquareWaveIcon,
     Art: SquareWaveArt,
@@ -22,10 +25,18 @@ const LABS = [
   {
     path: momentumLabPath,
     tag: '力學',
-    title: '動能與動量實驗室',
+    title: '動能與動量',
     text: '拖曳滑車、調整質量，觀察動量和動能在運動與碰撞中如何變化。',
     Icon: MomentumCartIcon,
     Art: CollisionArt,
+  },
+  {
+    path: verticalCircleLabPath,
+    tag: '力學',
+    title: '鉛直圓周運動',
+    text: '改變小球的速率或釋放高度，觀察動能和重力位能如何轉換，以及小球能不能繞完一圈。',
+    Icon: VerticalCircleIcon,
+    Art: VerticalCircleArt,
   },
 ]
 
@@ -43,6 +54,10 @@ function App() {
 
   if (currentPath === momentumLabPath) {
     return <MomentumLab />
+  }
+
+  if (currentPath === verticalCircleLabPath) {
+    return <VerticalCircleLab />
   }
 
   return (

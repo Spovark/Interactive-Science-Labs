@@ -4,6 +4,7 @@ import { prefersReducedMotion } from './momentumHooks'
 const SCENE_MILLISECONDS = 5000
 
 type HeroScene = {
+  title: string
   tag: string
   Art: ComponentType
 }
@@ -24,8 +25,8 @@ function HeroArt({ scenes }: { scenes: HeroScene[] }) {
 
   return (
     <div className="hero-art" aria-hidden="true">
-      {scenes.map(({ tag, Art }, index) => (
-        <div className="hero-art-scene" data-active={index === active} key={tag}>
+      {scenes.map(({ title, tag, Art }, index) => (
+        <div className="hero-art-scene" data-active={index === active} key={title}>
           <span className="hero-art-label">{tag}</span>
           <Art />
         </div>

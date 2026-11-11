@@ -169,6 +169,14 @@ main {
 .collision-arrow-a { stroke: var(--momentum-a); }
 .collision-arrow-b { stroke: var(--momentum-b); }
 
+.circle-art-ground { fill: none; stroke: var(--text); stroke-width: 1.5; stroke-dasharray: 4 4; }
+.circle-art-path { fill: none; stroke: var(--text); stroke-width: 1.5; stroke-dasharray: 3 5; }
+.circle-art-rope { stroke: var(--text-h); stroke-width: 2; }
+.circle-art-pivot { fill: var(--bg); stroke: var(--text-h); stroke-width: 2; }
+.circle-art-ghost { fill: none; stroke: var(--accent); stroke-width: 1.5; }
+.circle-art-ball { fill: var(--accent); }
+.circle-art-arrow { fill: none; stroke: var(--momentum-a); stroke-width: 2.5; stroke-linecap: round; stroke-linejoin: round; }
+
 .ticks {
   position: relative;
   width: 100%;

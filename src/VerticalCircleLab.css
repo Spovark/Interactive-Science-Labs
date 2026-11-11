@@ -1,0 +1,98 @@
+.circle-page {
+  --circle-kinetic: #d9692a;
+  --circle-potential: #2563eb;
+  --circle-total: #a032f5;
+  --circle-force: #0b8f84;
+  --circle-weight: #8e2a5b;
+  --circle-resistance: #7a7183;
+  --circle-ball: #3b2f4a;
+}
+
+@media (prefers-color-scheme: dark) {
+  .circle-page {
+    --circle-kinetic: #d4742f;
+    --circle-potential: #4f8fe8;
+    --circle-total: #a56cf0;
+    --circle-force: #1ea396;
+    --circle-weight: #c4609a;
+    --circle-resistance: #9b93a8;
+    --circle-ball: #e4dff0;
+  }
+}
+
+.circle-tabs { display: flex; gap: 4px; width: fit-content; max-width: 100%; box-sizing: border-box; margin-bottom: 14px; padding: 4px; border: 1px solid var(--lab-border); border-radius: 12px; background: var(--lab-surface); }
+.lab-page .circle-tab { padding: 7px 16px; background: transparent; color: var(--lab-muted); white-space: nowrap; }
+.lab-page .circle-tab[aria-current='true'] { background: var(--lab-accent); color: var(--lab-surface); }
+.circle-scene[hidden] { display: none; }
+
+.circle-slider-value { color: var(--lab-muted); font-weight: 600; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.circle-field-label { display: block; margin-bottom: 7px; font-size: .91rem; font-weight: 650; }
+.circle-segmented { display: grid; gap: 4px; padding: 3px; border-radius: 10px; background: var(--lab-metric-bg); }
+.lab-page .circle-segmented button { padding: 6px 8px; background: transparent; color: var(--lab-muted); }
+.lab-page .circle-segmented button[aria-pressed='true'] { background: var(--lab-accent); color: var(--lab-surface); }
+.circle-label-group { display: inline-flex; align-items: center; }
+.circle-unit-input { display: flex; align-items: baseline; gap: 3px; color: var(--lab-muted); font-weight: 400; white-space: nowrap; }
+.lab-number-input.circle-number-input { width: calc(6ch + 22px); }
+.circle-speed-foot { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-top: 6px; color: var(--lab-muted); font-size: .8rem; }
+.circle-unit-switch { display: inline-flex; gap: 2px; padding: 2px; border-radius: 8px; background: var(--lab-metric-bg); }
+.lab-page .circle-unit-switch button { padding: 2px 8px; background: transparent; color: var(--lab-muted); font-size: .78rem; font-weight: 600; }
+.lab-page .circle-unit-switch button[aria-pressed='true'] { background: var(--lab-accent); color: var(--lab-surface); }
+
+.circle-thresholds { width: 100%; border-collapse: collapse; font-size: .85rem; }
+.circle-thresholds th, .circle-thresholds td { padding: 5px 6px; border-bottom: 1px solid var(--lab-border-soft); text-align: left; }
+.circle-thresholds th { color: var(--lab-muted); font-weight: 600; white-space: nowrap; }
+.circle-thresholds tr.is-current th, .circle-thresholds tr.is-current td { background: var(--lab-status-bg); color: var(--lab-status-text); }
+.circle-thresholds tr.is-current th { border-radius: 6px 0 0 6px; font-weight: 700; }
+.circle-thresholds tr.is-current td { border-radius: 0 6px 6px 0; }
+
+.circle-heading-side { display: flex; align-items: center; gap: 8px; min-height: 28px; }
+.circle-chip { padding: 2px 10px; border-radius: 999px; background: var(--lab-status-bg); color: var(--lab-status-text); font-size: .78rem; font-weight: 650; white-space: nowrap; }
+.circle-caption { color: var(--lab-muted); font-size: .78rem; white-space: nowrap; }
+
+.circle-stage { position: relative; margin-top: 10px; overflow: hidden; border-radius: 10px; background: var(--lab-metric-bg); }
+.circle-stage svg, .circle-chart-box svg { display: block; }
+.circle-stage-top { position: absolute; inset: 9px 12px auto; display: flex; align-items: flex-start; justify-content: space-between; gap: 8px; color: var(--lab-text); font-size: .82rem; pointer-events: none; }
+.circle-stage-top b { font-variant-numeric: tabular-nums; }
+.circle-readout-group { display: grid; gap: 2px; }
+.circle-stage-top span { white-space: nowrap; }
+
+.circle-timeline { display: flex; align-items: center; gap: 8px; margin-top: 10px; }
+.circle-timeline input[type=range] { flex: 1; min-width: 40px; accent-color: var(--lab-accent); }
+.circle-timeline button { flex: none; }
+.circle-time { flex: none; min-width: 74px; color: var(--lab-muted); font-size: .85rem; font-variant-numeric: tabular-nums; text-align: right; white-space: nowrap; }
+.circle-run-note { margin: 10px 0 0; color: var(--lab-muted); font-size: .85rem; line-height: 1.6; }
+
+.circle-chart-pair { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(310px, 100%), 1fr)); gap: 14px; }
+.circle-chart-box { width: 100%; margin-top: 8px; }
+.circle-drag { cursor: ew-resize; touch-action: pan-y; }
+.circle-grab { cursor: grab; touch-action: none; }
+.circle-legend { display: flex; flex-wrap: wrap; gap: 3px 14px; margin-top: 8px; color: var(--lab-muted); font-size: .8rem; }
+.circle-legend-item { display: inline-flex; align-items: center; gap: 5px; white-space: nowrap; }
+.circle-legend b { color: var(--lab-text); font-weight: 650; font-variant-numeric: tabular-nums; }
+.circle-key { flex: none; width: 13px; height: 10px; border-radius: 2px; background: currentColor; }
+.circle-key.is-line { height: 3px; border-radius: 0; }
+.circle-key.is-dashed { height: 0; border-top: 2px dashed currentColor; border-radius: 0; background: none; }
+.circle-key.is-dot { width: 10px; border-radius: 50%; }
+
+.circle-readout-block { min-height: 76px; }
+.circle-energy-bar { display: flex; gap: 2px; height: 24px; margin-top: 12px; border-radius: 4px; outline: 2px solid var(--circle-total); outline-offset: 2px; background: var(--lab-metric-bg); }
+.circle-energy-bar i { display: block; flex-basis: 0; min-width: 0; height: 100%; border-radius: 4px; }
+.circle-force-values { margin: 6px 0 0; color: var(--lab-muted); font-size: .82rem; line-height: 1.6; }
+.circle-force-values b { color: var(--lab-text); font-weight: 650; font-variant-numeric: tabular-nums; }
+
+@media (max-width: 760px) {
+  .circle-scene { grid-template-columns: minmax(0, 1fr); }
+  .circle-scene > .lab-plots { display: contents; }
+  .circle-scene > .lab-panel { order: 2; position: static; max-height: none; overflow: visible; }
+  .circle-stage-card { order: 1; }
+  .circle-chart-pair { order: 3; }
+}
+
+@media (max-width: 560px) {
+  .circle-chart-pair { gap: 8px; }
+  .lab-page .circle-tab { padding: 7px 12px; }
+  .circle-timeline { flex-wrap: wrap; }
+  .circle-timeline input[type=range] { order: 3; flex-basis: 100%; }
+  .circle-time { margin-left: auto; }
+  .circle-stage-top { font-size: .76rem; }
+}
