@@ -24,15 +24,17 @@ const HELP_CONTENT: Record<CircleHelpTopic, ReactNode[]> = {
     <><MathText tex="m" /> 是小球的質量，<MathText tex="v" /> 是速率，<MathText tex="h" /> 是小球離最低點的高度，<MathText tex="v_0" /> 是最低點的速率，重力加速度 <MathText tex="g = 9.8\ \text{m/s}^{2}" />。</>,
     ENERGY_LINE,
     '繩子只能拉、不能推；輕桿可以拉，也可以推。這個差別決定了小球能不能繞完一圈。',
+    <>在起點暫停時，可以沿著圓周拖曳小球，改變出發位置。小球出發時的力學能和從最低點以 <MathText tex="v_0" /> 出發時相同，所以出發位置越高，出發的速率越小。小球最高只能放到動能全部轉成位能的高度；用繩子時，也不能放到繩子會鬆弛的位置。</>,
   ],
   strength: [
     <>斷裂強度 <MathText tex="T_{\max}" /> 是繩子能承受的最大張力，張力超過它，繩子就會斷。只有繩子有這個設定。</>,
     <>小球在最低點的速率最大，張力也最大：</>,
     <MathText tex="T = mg + \frac{mv_0^{2}}{R}" display />,
-    <>所以只要最低點需要的張力超過 <MathText tex="T_{\max}" />，小球一出發繩子就斷了，小球改作平拋運動。繩子不斷的條件是：</>,
+    <>所以只要最低點需要的張力超過 <MathText tex="T_{\max}" />，繩子在小球到達最低點以前就會斷；從最低點出發時，小球一出發繩子就斷了，改作平拋運動。繩子不斷的條件是：</>,
     <MathText tex="v_0 \le \sqrt{\left(\frac{T_{\max}}{m} - g\right)R}" display />,
     <>要完成圓周，<MathText tex="v_0" /> 至少要 <MathText tex="\sqrt{5gR}" />，這時最低點的張力是 <MathText tex="6mg" />。所以 <MathText tex="T_{\max}" /> 小於 <MathText tex="6mg" /> 時，小球不可能繞完一圈：速率太小繩子會鬆弛，速率太大繩子會斷。</>,
     <>完成圓周需要的速率只和 <MathText tex="R" /> 有關；繩子會不會斷，則和 <MathText tex="R" />、<MathText tex="m" /> 都有關。</>,
+    <>動畫在中途暫停時調整斷裂強度，新的值從這個時刻開始生效，小球從目前的位置繼續運動。張力一超過斷裂強度，繩子就斷，小球沿著當時的切線方向飛出。例如在最高點附近把斷裂強度調低，繩子會在小球往下擺、張力變大的途中斷掉。</>,
   ],
   trackHeight: [
     <>小球從高度 <MathText tex="H" /> 的地方由靜止滑下，進入半徑 <MathText tex="R" /> 的圓形軌道。軌道的正向力始終和速度垂直，不作功。沒有阻力時，小球的力學能守恆：</>,

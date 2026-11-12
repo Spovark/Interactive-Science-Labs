@@ -34,8 +34,11 @@ export type Outcome = 'swing' | 'loop' | 'leave' | 'launch' | 'exit' | 'rest' | 
 // Which way the rope, rod or track can act on the ball, relative to the centre of the circle.
 type Allows = 'toward' | 'away' | 'both'
 
-// The rope breaks once its tension would exceed `strength`.
-export type RopeInput = { link: Link; radius: number; mass: number; speed: number; resistance: number; strength: number }
+// `speed` is the speed at the lowest point and fixes the mechanical energy; the ball starts at `startAngle` (radians from
+// the lowest point, counterclockwise) with the speed that energy leaves it. The rope breaks once its tension would exceed `strength`.
+export type RopeInput = { link: Link; radius: number; mass: number; speed: number; startAngle: number; resistance: number; strength: number }
+// From `time` on, the rope has breaking strength `strength`; set while the animation is paused part way.
+export type StrengthChange = { time: number; strength: number }
 export type TrackInput = { kind: TrackKind; start: TrackStart; height: number; speed: number; radius: number; mass: number; resistance: number }
 
 // Heights are measured from the h = 0 line of each scene, x to the right of the circle's centre.
@@ -83,6 +86,9 @@ export type MotionRun = {
   forceTrace: [number, number][][]
   // The force the rope or track would have to supply if the ball had stayed on the circle after leaving.
   forceContinuation: [number, number][]
+  // forceTrace and topPasses counted only up to `time`, for joining a run continued from that moment.
+  traceBefore: (time: number) => [number, number][][]
+  topsBefore: (time: number) => number
 }
 
 type PathPoint = {
@@ -105,6 +111,8 @@ type Scenario = {
   angleOf: (position: number) => number | null
   start: number
   speed: number
+  // Which way along the path a ball with speed > 0 starts moving.
+  direction: 1 | -1
   step: number
   // Circumference of a closed path, or null for an open one.
   wrap: number | null
@@ -411,6 +419,15 @@ function flightFrame(scenario: Scenario, flight: Flight, local: number): MotionF
   }
 }
 
+// The part of a leg covered in its first `local` seconds.
+function truncateLeg(leg: Leg, local: number): Leg {
+  if (local >= leg.duration) return leg
+  let count = 1
+  while (count < leg.times.length && leg.times[count] <= local) count += 1
+  const position = legPosition(leg, local)
+  return { ...leg, duration: local, grid: [...leg.grid.slice(0, count), position], times: [...leg.times.slice(0, count), local], speeds: [...leg.speeds.slice(0, count), leg.speeds[count - 1]] }
+}
+
 function countTops(scenario: Scenario, leg: Leg) {
   if (!scenario.tops) return 0
   const { first, spacing } = scenario.tops
@@ -483,7 +500,7 @@ function simulate(scenario: Scenario): MotionRun {
   let position = scenario.start
   let energy = initialEnergy
   let lost = 0
-  let direction: 1 | -1 = 1
+  let direction: 1 | -1 = scenario.direction
   if (scenario.speed === 0) {
     if (restsAt(startPoint)) outcome = 'rest'
     else direction = -startPoint.ty > 0 ? 1 : -1
@@ -536,8 +553,8 @@ function simulate(scenario: Scenario): MotionRun {
       outcome = end
       break
     }
-    // An open track released from rest repeats once the ball is back at the release point.
-    if (resistance === 0 && scenario.wrap === null && index >= 1 && Math.abs(finish - scenario.start) < POSITION_TOLERANCE) {
+    // A ball released from rest repeats once it is back at the release point.
+    if (resistance === 0 && index >= 1 && Math.abs(finish - scenario.start) < POSITION_TOLERANCE) {
       outcome = 'swing'
       periodic = true
       break
@@ -550,6 +567,7 @@ function simulate(scenario: Scenario): MotionRun {
     direction = -point.ty > 0 ? 1 : -1
   }
 
+  const legsBefore = (until: number) => legs.filter((leg) => leg.t0 < until).map((leg) => truncateLeg(leg, until - leg.t0))
   const restLeg: Leg = { kind: 'leg', t0: 0, duration: 0, start: scenario.start, direction: 1, energy: initialEnergy, lost: 0, grid: [scenario.start], times: [0], speeds: [0] }
   if (segments.length === 0) segments.push(restLeg)
   const duration = time > 0 ? time : REST_DURATION
@@ -582,11 +600,37 @@ function simulate(scenario: Scenario): MotionRun {
     frameAt,
     forceTrace: traceForces(scenario, legs.length > 0 ? legs : [restLeg]),
     forceContinuation: (outcome === 'leave' || outcome === 'snap') && lastLeg ? continueForce(scenario, lastLeg) : [],
+    traceBefore: (until) => traceForces(scenario, legsBefore(until)),
+    topsBefore: (until) => legsBefore(until).reduce((sum, leg) => sum + countTops(scenario, leg), 0),
+  }
+}
+
+// Plays `first` up to `at`, then `second`, which starts from the state of `first` at that moment.
+function joinRuns(first: MotionRun, second: MotionRun, at: number): MotionRun {
+  const duration = at + second.duration
+  const periodic = second.periodic
+  const lostBefore = first.frameAt(at).lost
+  return {
+    ...second,
+    duration,
+    initialEnergy: first.initialEnergy,
+    leaveTime: second.leaveTime === null ? null : at + second.leaveTime,
+    topPasses: first.topsBefore(at) + second.topPasses,
+    stuckAtStart: first.stuckAtStart,
+    frameAt: (requested) => {
+      const local = periodic ? ((requested % duration) + duration) % duration : clamp(requested, 0, duration)
+      if (local < at) return first.frameAt(local)
+      const frame = second.frameAt(local - at)
+      return { ...frame, lost: frame.lost + lostBefore }
+    },
+    forceTrace: [...first.traceBefore(at), ...second.forceTrace],
+    traceBefore: (until) => (until <= at ? first.traceBefore(until) : [...first.traceBefore(at), ...second.traceBefore(until - at)]),
+    topsBefore: (until) => (until <= at ? first.topsBefore(until) : first.topsBefore(at) + second.topsBefore(until - at)),
   }
 }
 
 // A full circle of radius R with the ball starting at the lowest point; angle measured from there.
-function circleScenario(radius: number, mass: number, speed: number, resistance: number, allows: Allows, breakForce: number | null = null): Scenario {
+function circleScenario(radius: number, mass: number, speed: number, resistance: number, allows: Allows, breakForce: number | null = null, start = 0, direction: 1 | -1 = 1): Scenario {
   const wrap = 2 * Math.PI * radius
   return {
     mass,
@@ -595,8 +639,9 @@ function circleScenario(radius: number, mass: number, speed: number, resistance:
     forceSign: 1,
     geometry: (position) => circlePoint(radius, position / radius),
     angleOf: (position) => wrapAngle(position / radius),
-    start: 0,
+    start,
     speed,
+    direction,
     step: radius / STEPS_PER_RADIUS,
     wrap,
     end: null,
@@ -609,10 +654,37 @@ function circleScenario(radius: number, mass: number, speed: number, resistance:
   }
 }
 
-export function solveRope({ link, radius, mass, speed, resistance, strength }: RopeInput): MotionRun {
-  return simulate(link === 'rope'
-    ? circleScenario(radius, mass, speed, resistance, 'toward', strength)
-    : circleScenario(radius, mass, speed, resistance, 'both'))
+// Moves the start toward the lowest point until the ball can be there: it needs v² ≥ 0, and a rope must be taut.
+function reachableAngle(link: Link, radius: number, speed: number, angle: number) {
+  const speedSquared = (at: number) => speed ** 2 - 2 * GRAVITY * radius * (1 - Math.cos(at))
+  const reachable = (at: number) => speedSquared(at) >= 0 && (link === 'rod' || speedSquared(at) / radius + GRAVITY * Math.cos(at) >= 0)
+  if (reachable(angle)) return angle
+  let good = 0
+  let bad = angle
+  for (let step = 0; step < BISECTIONS; step += 1) {
+    const middle = (good + bad) / 2
+    if (reachable(middle)) good = middle
+    else bad = middle
+  }
+  return good
+}
+
+export function solveRope({ link, radius, mass, speed, startAngle, resistance, strength }: RopeInput, changes: StrengthChange[] = []): MotionRun {
+  const angle = reachableAngle(link, radius, speed, startAngle)
+  const startSpeed = Math.sqrt(Math.max(0, speed ** 2 - 2 * GRAVITY * radius * (1 - Math.cos(angle))))
+  if (link === 'rod') return simulate(circleScenario(radius, mass, startSpeed, resistance, 'both', null, angle * radius))
+  let run = simulate(circleScenario(radius, mass, startSpeed, resistance, 'toward', strength, angle * radius))
+  // Each change restarts the motion from where the ball is at that moment, with the new breaking strength.
+  for (const change of changes) {
+    if (change.time <= 0 || change.time >= run.duration) continue
+    const frame = run.frameAt(change.time)
+    if (!frame.attached) continue
+    const angle = Math.atan2(frame.x, radius - frame.y)
+    const direction = frame.vx * Math.cos(angle) + frame.vy * Math.sin(angle) < 0 ? -1 : 1
+    const next = simulate(circleScenario(radius, mass, frame.speed, resistance, 'toward', change.strength, angle * radius, direction))
+    run = joinRuns(run, next, change.time)
+  }
+  return run
 }
 
 export function solveTrack({ kind, start, height, speed, radius, mass, resistance }: TrackInput): MotionRun {
@@ -627,6 +699,7 @@ export function solveTrack({ kind, start, height, speed, radius, mass, resistanc
       angleOf: (position) => position / radius,
       start: 0,
       speed,
+      direction: 1,
       step: radius / STEPS_PER_RADIUS,
       wrap: null,
       end: (Math.PI / 2) * radius,
@@ -652,6 +725,7 @@ export function solveTrack({ kind, start, height, speed, radius, mass, resistanc
       angleOf: (position) => (position >= 0 ? position / radius : null),
       start: HALF_START,
       speed,
+      direction: 1,
       step: radius / STEPS_PER_RADIUS,
       wrap: null,
       end: halfLength,
@@ -674,6 +748,7 @@ export function solveTrack({ kind, start, height, speed, radius, mass, resistanc
     angleOf: (position) => (position >= 0 && position <= loopLength ? wrapAngle(position / radius) : null),
     start: rampPosition(height),
     speed: 0,
+    direction: 1,
     step: radius / STEPS_PER_RADIUS,
     wrap: null,
     end: loopLength + EXIT_LENGTH,

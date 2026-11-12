@@ -71,6 +71,7 @@ export function thresholdRows(scene: SceneKind, radius: number, mass = 0, streng
 
 // The row that describes this run; the table only covers motion without resistance.
 export function activeThreshold(run: MotionRun, scene: SceneKind) {
+  // The tension is largest at the lowest point, so a rope that snaps anywhere satisfies the row's condition.
   if (run.outcome === 'snap') return 'snap'
   if (run.resistance > 0) return null
   if (scene === 'outside') return run.leaveAngle !== null && run.leaveAngle > 1e-6 ? 'slide' : 'top'

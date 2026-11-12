@@ -275,9 +275,14 @@ export function RunNote({ run, scene }: { run: MotionRun; scene: SceneKind }) {
   const passes = run.resistance > 0 && run.topPasses > 0 ? `小球通過最高點 ${run.topPasses} 次後，` : ''
   let note: ReactNode = null
   if (run.outcome === 'snap') {
-    note = run.leaveAngle !== null && Math.abs(run.leaveAngle) > 1e-6
-      ? <>張力在 <AngleTex angle={run.leaveAngle} /> 時超過斷裂強度，繩子斷裂，小球改作拋體運動，模擬到小球離開畫面為止。</>
-      : '小球一出發，需要的張力就超過斷裂強度，繩子斷裂，小球改作平拋運動，模擬到小球離開畫面為止。'
+    const atBottom = run.leaveAngle !== null && Math.abs(run.leaveAngle) < 1e-6
+    if (run.leaveTime === 0) {
+      note = atBottom
+        ? '小球一出發，需要的張力就超過斷裂強度，繩子斷裂，小球改作平拋運動，模擬到小球離開畫面為止。'
+        : '小球一出發，需要的張力就超過斷裂強度，繩子斷裂，小球沿著切線方向飛出，改作拋體運動，模擬到小球離開畫面為止。'
+    } else if (run.leaveAngle !== null) {
+      note = <>張力在 <AngleTex angle={run.leaveAngle} /> 時超過斷裂強度，繩子斷裂，小球沿著當時的切線方向飛出，改作拋體運動，模擬到小球離開畫面為止。</>
+    }
   } else if (run.outcome === 'leave' && run.leaveAngle !== null) {
     if (scene === 'rope') {
       note = <>{passes}繩子在 <AngleTex angle={run.leaveAngle} /> 時鬆弛，小球改作拋體運動{conserved}。繩子再次拉緊時會猛然拉扯小球、損失力學能，模擬到這裡為止。</>
