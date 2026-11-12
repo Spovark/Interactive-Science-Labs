@@ -98,7 +98,7 @@ export function StageToolbar({ options, onOptionsChange, rate, onRateChange, onH
       <ToolbarChoice label="坐標系" help={helpButton('observer', '坐標系')} options={OBSERVER_OPTIONS} value={options.observer} onChange={(observer) => onOptionsChange({ observer })} />
       <ToolbarChoice label="播放速度" options={RATE_OPTIONS} value={rate} onChange={onRateChange} />
       <div className="circle-toolbar-group">
-        <span className="circle-toolbar-label">向量{helpButton('vectors', '向量')}</span>
+        <span className="circle-toolbar-label">向量的顯示{helpButton('vectors', '向量的顯示')}</span>
         <ToolbarCheck label="徑向與切向分量" checked={options.components} onChange={(components) => onOptionsChange({ components })} />
         {options.observer === 'ground' && <ToolbarCheck label="向心力" checked={options.centripetal} onChange={(centripetal) => onOptionsChange({ centripetal })} />}
         <ToolbarCheck label="實際力的徑向合力" checked={options.radialSum} onChange={(radialSum) => onOptionsChange({ radialSum })} />
