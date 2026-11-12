@@ -1,6 +1,6 @@
 export const GRAVITY = 9.8
 
-// The solid tracks all use this radius.
+// The default radius of the circle in both scenes.
 export const TRACK_RADIUS = 1
 export const RAMP_RADIUS = 4.3
 export const RAMP_TOP = 4.1
@@ -8,8 +8,9 @@ export const EXIT_LENGTH = 3
 export const TIME_LIMIT = 60
 // The floor to the left of the half-circle track, where a ball thrown from the top lands.
 export const FLOOR_LENGTH = 4.4
+// The ball on the half-circle track starts on the floor, so the floor and the circle can be compared.
+export const HALF_START = -3.5
 
-const LOOP_LENGTH = 2 * Math.PI * TRACK_RADIUS
 const STEPS_PER_RADIUS = 160
 const MAX_LEGS = 400
 const FLIGHT_STEP = 0.0005
@@ -18,6 +19,8 @@ const BISECTIONS = 50
 const TRACE_POINTS = 4000
 const CONTINUATION_POINTS = 60
 const REST_DURATION = 1
+// A ball whose rope snaps falls this far below h = 0, out of the animation, before the run ends.
+const SNAP_FLOOR = -1
 // Lets settings typed as exact critical values (for example v₀ = √(5gR)) keep the ball on the circle despite rounding.
 const FORCE_TOLERANCE = 5e-4
 const POSITION_TOLERANCE = 1e-6
@@ -25,13 +28,15 @@ const POSITION_TOLERANCE = 1e-6
 export type Link = 'rope' | 'rod'
 export type TrackKind = 'inside' | 'tube' | 'outside' | 'half'
 export type TrackStart = 'height' | 'bottom'
-// swing and loop repeat forever; the others end the run. launch is a ball thrown off the end of the track.
-export type Outcome = 'swing' | 'loop' | 'leave' | 'launch' | 'exit' | 'rest' | 'limit'
+// swing and loop repeat forever; the others end the run. launch is a ball thrown off the end of the track,
+// snap a rope pulled harder than its breaking strength.
+export type Outcome = 'swing' | 'loop' | 'leave' | 'launch' | 'exit' | 'rest' | 'limit' | 'snap'
 // Which way the rope, rod or track can act on the ball, relative to the centre of the circle.
 type Allows = 'toward' | 'away' | 'both'
 
-export type RopeInput = { link: Link; radius: number; mass: number; speed: number; resistance: number }
-export type TrackInput = { kind: TrackKind; start: TrackStart; height: number; speed: number; mass: number; resistance: number }
+// The rope breaks once its tension would exceed `strength`.
+export type RopeInput = { link: Link; radius: number; mass: number; speed: number; resistance: number; strength: number }
+export type TrackInput = { kind: TrackKind; start: TrackStart; height: number; speed: number; radius: number; mass: number; resistance: number }
 
 // Heights are measured from the h = 0 line of each scene, x to the right of the circle's centre.
 export type MotionFrame = {
@@ -109,12 +114,16 @@ type Scenario = {
   launchAtEnd: boolean
   // Path positions of the top of the circle, for counting passes over it.
   tops: { first: number; spacing: number } | null
-  // Where free flight ends: back on the circle of this radius around (0, radius), on the ground y = 0,
-  // or whichever comes first of the ground and the right half of that circle.
-  landing: { kind: 'circle'; radius: number } | { kind: 'ground' } | { kind: 'groundOrArc'; radius: number }
+  landing: Landing
+  // The rope snaps when the force toward the centre would exceed this; null for anything that cannot break.
+  breakForce: number | null
   // How far the would-be force curve continues after leaving, measured along the path.
   continuationLimit: (position: number) => number
 }
+
+// Where free flight ends: back on the circle of this radius around (0, radius), on the ground y = 0,
+// whichever comes first of the ground and the right half of that circle, or at the height y.
+type Landing = { kind: 'circle'; radius: number } | { kind: 'ground' } | { kind: 'groundOrArc'; radius: number } | { kind: 'level'; y: number }
 
 type Leg = {
   kind: 'leg'
@@ -132,7 +141,7 @@ type Leg = {
 type FlightState = { x: number; y: number; vx: number; vy: number; lost: number }
 type Flight = { kind: 'flight'; t0: number; duration: number; states: FlightState[]; finalStep: number }
 type Segment = Leg | Flight
-type LegEnd = 'turn' | 'leave' | 'end' | 'cycle' | 'limit'
+type LegEnd = 'turn' | 'leave' | 'snap' | 'end' | 'cycle' | 'limit'
 
 function clamp(value: number, min: number, max: number) {
   return Math.min(max, Math.max(min, value))
@@ -149,25 +158,26 @@ function circlePoint(radius: number, angle: number): PathPoint {
 }
 
 // Ramp (arc of radius RAMP_RADIUS) for s < 0, the loop for 0 ≤ s ≤ 2πR, then a flat exit.
-export function trackPoint(position: number): PathPoint {
+function trackPoint(radius: number, position: number): PathPoint {
+  const loopLength = 2 * Math.PI * radius
   if (position < 0) {
     const angle = -position / RAMP_RADIUS
     const sin = Math.sin(angle)
     const cos = Math.cos(angle)
     return { x: -RAMP_RADIUS * sin, y: RAMP_RADIUS * (1 - cos), tx: cos, ty: -sin, nx: sin, ny: cos, curvature: 1 / RAMP_RADIUS }
   }
-  if (position <= LOOP_LENGTH) return circlePoint(TRACK_RADIUS, position / TRACK_RADIUS)
-  return { x: position - LOOP_LENGTH, y: 0, tx: 1, ty: 0, nx: 0, ny: 1, curvature: 0 }
+  if (position <= loopLength) return circlePoint(radius, position / radius)
+  return { x: position - loopLength, y: 0, tx: 1, ty: 0, nx: 0, ny: 1, curvature: 0 }
 }
 
 // The outside of a circle of radius R centred on the ground, angle measured from the top.
-function domePoint(angle: number): PathPoint {
+function domePoint(radius: number, angle: number): PathPoint {
   const sin = Math.sin(angle)
   const cos = Math.cos(angle)
-  return { x: TRACK_RADIUS * sin, y: TRACK_RADIUS * cos, tx: cos, ty: -sin, nx: -sin, ny: -cos, curvature: 1 / TRACK_RADIUS }
+  return { x: radius * sin, y: radius * cos, tx: cos, ty: -sin, nx: -sin, ny: -cos, curvature: 1 / radius }
 }
 
-export function rampPosition(height: number) {
+function rampPosition(height: number) {
   return -RAMP_RADIUS * Math.acos(1 - height / RAMP_RADIUS)
 }
 
@@ -204,7 +214,9 @@ function violates(scenario: Scenario, inward: number) {
 // Moves along the path in one direction until the ball turns back, leaves, reaches the end or completes a cycle.
 function buildLeg(scenario: Scenario, start: number, direction: 1 | -1, energy: number, lost: number, t0: number, cycleTarget: number | null): { leg: Leg; end: LegEnd } {
   const speedSquaredAt = (position: number) => speedSquaredOnLeg(scenario, start, energy, position)
-  const breaks = (position: number) => violates(scenario, inwardForce(scenario, scenario.geometry(position), speedSquaredAt(position)))
+  const inwardAt = (position: number) => inwardForce(scenario, scenario.geometry(position), speedSquaredAt(position))
+  const breaks = (position: number) => violates(scenario, inwardAt(position))
+  const snaps = (position: number) => scenario.breakForce !== null && inwardAt(position) > scenario.breakForce
   const grid = [start]
   const speeds = [Math.sqrt(Math.max(0, speedSquaredAt(start)))]
   const times = [0]
@@ -219,6 +231,7 @@ function buildLeg(scenario: Scenario, start: number, direction: 1 | -1, energy: 
     speeds.push(speed)
     leg.duration = times[times.length - 1]
   }
+  if (snaps(start)) return { leg, end: 'snap' }
   if (breaks(start)) return { leg, end: 'leave' }
 
   let position = start
@@ -240,6 +253,10 @@ function buildLeg(scenario: Scenario, start: number, direction: 1 | -1, energy: 
     if (speedSquaredAt(next) <= 0) {
       push(bisect(position, next, (point) => speedSquaredAt(point) > 0))
       return { leg, end: 'turn' }
+    }
+    if (snaps(next)) {
+      push(bisect(position, next, (point) => !snaps(point)))
+      return { leg, end: 'snap' }
     }
     if (breaks(next)) {
       push(bisect(position, next, (point) => !breaks(point)))
@@ -298,18 +315,18 @@ function lerpState(a: FlightState, b: FlightState, fraction: number): FlightStat
 }
 
 // Free flight under gravity and the resistance until the ball is back on the circle or on the ground.
-function fly(scenario: Scenario, initial: FlightState, t0: number): Flight {
-  const landing = scenario.landing
+function fly(scenario: Scenario, initial: FlightState, t0: number, landing: Landing = scenario.landing): Flight {
   // Positive while the ball is still in the air.
   const gap = (state: FlightState) => {
     if (landing.kind === 'ground') return state.y
+    if (landing.kind === 'level') return state.y - landing.y
     const inside = landing.radius ** 2 - state.x ** 2 - (state.y - landing.radius) ** 2
     if (landing.kind === 'circle') return inside
     return state.x > 0 ? Math.min(state.y, inside) : state.y
   }
-  const tolerance = landing.kind === 'ground' ? 0 : 1e-9 * landing.radius ** 2
+  const tolerance = landing.kind === 'ground' || landing.kind === 'level' ? 0 : 1e-9 * landing.radius ** 2
   const states = [initial]
-  let armed = landing.kind === 'ground'
+  let armed = landing.kind === 'ground' || landing.kind === 'level'
   let previous = initial
   const limit = Math.min(FLIGHT_LIMIT, Math.max(FLIGHT_STEP, TIME_LIMIT - t0))
   for (let step = 1; step * FLIGHT_STEP <= limit; step += 1) {
@@ -507,15 +524,16 @@ function simulate(scenario: Scenario): MotionRun {
       break
     }
     if (end === 'limit') break
-    if (end === 'leave') {
+    if (end === 'leave' || end === 'snap') {
       const point = scenario.geometry(finish)
       const speed = Math.sqrt(Math.max(0, speedSquaredOnLeg(scenario, leg.start, leg.energy, finish)))
       leaveTime = time
       leaveAngle = scenario.angleOf(finish)
-      const flight = fly(scenario, { x: point.x, y: point.y, vx: direction * speed * point.tx, vy: direction * speed * point.ty, lost }, time)
+      const landing: Landing | undefined = end === 'snap' ? { kind: 'level', y: SNAP_FLOOR } : undefined
+      const flight = fly(scenario, { x: point.x, y: point.y, vx: direction * speed * point.tx, vy: direction * speed * point.ty, lost }, time, landing)
       segments.push(flight)
       time += flight.duration
-      outcome = 'leave'
+      outcome = end
       break
     }
     // An open track released from rest repeats once the ball is back at the release point.
@@ -563,12 +581,12 @@ function simulate(scenario: Scenario): MotionRun {
     stuckAtStart: legs.length === 0,
     frameAt,
     forceTrace: traceForces(scenario, legs.length > 0 ? legs : [restLeg]),
-    forceContinuation: outcome === 'leave' && lastLeg ? continueForce(scenario, lastLeg) : [],
+    forceContinuation: (outcome === 'leave' || outcome === 'snap') && lastLeg ? continueForce(scenario, lastLeg) : [],
   }
 }
 
 // A full circle of radius R with the ball starting at the lowest point; angle measured from there.
-function circleScenario(radius: number, mass: number, speed: number, resistance: number, allows: Allows): Scenario {
+function circleScenario(radius: number, mass: number, speed: number, resistance: number, allows: Allows, breakForce: number | null = null): Scenario {
   const wrap = 2 * Math.PI * radius
   return {
     mass,
@@ -586,38 +604,43 @@ function circleScenario(radius: number, mass: number, speed: number, resistance:
     launchAtEnd: false,
     tops: { first: Math.PI * radius, spacing: wrap },
     landing: { kind: 'circle', radius },
+    breakForce,
     continuationLimit: (position) => Math.max(0, Math.PI * radius - Math.abs(wrapAngle(position / radius)) * radius),
   }
 }
 
-export function solveRope({ link, radius, mass, speed, resistance }: RopeInput): MotionRun {
-  return simulate(circleScenario(radius, mass, speed, resistance, link === 'rope' ? 'toward' : 'both'))
+export function solveRope({ link, radius, mass, speed, resistance, strength }: RopeInput): MotionRun {
+  return simulate(link === 'rope'
+    ? circleScenario(radius, mass, speed, resistance, 'toward', strength)
+    : circleScenario(radius, mass, speed, resistance, 'both'))
 }
 
-export function solveTrack({ kind, start, height, speed, mass, resistance }: TrackInput): MotionRun {
+export function solveTrack({ kind, start, height, speed, radius, mass, resistance }: TrackInput): MotionRun {
+  const loopLength = 2 * Math.PI * radius
   if (kind === 'outside') {
     return simulate({
       mass,
       resistance,
       allows: 'away',
       forceSign: -1,
-      geometry: (position) => domePoint(position / TRACK_RADIUS),
-      angleOf: (position) => position / TRACK_RADIUS,
+      geometry: (position) => domePoint(radius, position / radius),
+      angleOf: (position) => position / radius,
       start: 0,
       speed,
-      step: TRACK_RADIUS / STEPS_PER_RADIUS,
+      step: radius / STEPS_PER_RADIUS,
       wrap: null,
-      end: (Math.PI / 2) * TRACK_RADIUS,
+      end: (Math.PI / 2) * radius,
       begin: null,
       launchAtEnd: false,
       tops: null,
       landing: { kind: 'ground' },
-      continuationLimit: (position) => Math.max(0, (Math.PI / 2) * TRACK_RADIUS - position),
+      breakForce: null,
+      continuationLimit: (position) => Math.max(0, (Math.PI / 2) * radius - position),
     })
   }
   if (kind === 'half') {
-    // A floor for s < 0 leads into the right half of the circle, which ends at the top.
-    const halfLength = Math.PI * TRACK_RADIUS
+    // The ball starts on a floor for s < 0, which leads into the right half of the circle, which ends at the top.
+    const halfLength = Math.PI * radius
     return simulate({
       mass,
       resistance,
@@ -625,38 +648,40 @@ export function solveTrack({ kind, start, height, speed, mass, resistance }: Tra
       forceSign: 1,
       geometry: (position) => (position < 0
         ? { x: position, y: 0, tx: 1, ty: 0, nx: 0, ny: 1, curvature: 0 }
-        : circlePoint(TRACK_RADIUS, position / TRACK_RADIUS)),
-      angleOf: (position) => (position >= 0 ? position / TRACK_RADIUS : null),
-      start: 0,
+        : circlePoint(radius, position / radius)),
+      angleOf: (position) => (position >= 0 ? position / radius : null),
+      start: HALF_START,
       speed,
-      step: TRACK_RADIUS / STEPS_PER_RADIUS,
+      step: radius / STEPS_PER_RADIUS,
       wrap: null,
       end: halfLength,
       begin: -FLOOR_LENGTH,
       launchAtEnd: true,
       tops: { first: halfLength, spacing: Infinity },
-      landing: { kind: 'groundOrArc', radius: TRACK_RADIUS },
+      landing: { kind: 'groundOrArc', radius },
+      breakForce: null,
       continuationLimit: (position) => Math.max(0, halfLength - position),
     })
   }
   const allows: Allows = kind === 'tube' ? 'both' : 'toward'
-  if (start === 'bottom') return simulate(circleScenario(TRACK_RADIUS, mass, speed, resistance, allows))
+  if (start === 'bottom') return simulate(circleScenario(radius, mass, speed, resistance, allows))
   return simulate({
     mass,
     resistance,
     allows,
     forceSign: 1,
-    geometry: trackPoint,
-    angleOf: (position) => (position >= 0 && position <= LOOP_LENGTH ? wrapAngle(position / TRACK_RADIUS) : null),
+    geometry: (position) => trackPoint(radius, position),
+    angleOf: (position) => (position >= 0 && position <= loopLength ? wrapAngle(position / radius) : null),
     start: rampPosition(height),
     speed: 0,
-    step: TRACK_RADIUS / STEPS_PER_RADIUS,
+    step: radius / STEPS_PER_RADIUS,
     wrap: null,
-    end: LOOP_LENGTH + EXIT_LENGTH,
+    end: loopLength + EXIT_LENGTH,
     begin: null,
     launchAtEnd: false,
-    tops: { first: Math.PI * TRACK_RADIUS, spacing: Infinity },
-    landing: { kind: 'circle', radius: TRACK_RADIUS },
-    continuationLimit: (position) => Math.max(0, Math.PI * TRACK_RADIUS - position),
+    tops: { first: Math.PI * radius, spacing: Infinity },
+    landing: { kind: 'circle', radius },
+    breakForce: null,
+    continuationLimit: (position) => Math.max(0, Math.PI * radius - position),
   })
 }

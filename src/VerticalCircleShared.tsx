@@ -6,7 +6,7 @@ import MathText from './MathText'
 import { TIME_LIMIT, type MotionFrame, type MotionRun } from './verticalCirclePhysics'
 import type { SceneKind, ThresholdRow } from './verticalCircleText'
 
-export type CircleHelpTopic = 'ropeStage' | 'trackHeight' | 'trackBottom' | 'trackOutside' | 'trackHalf' | 'observer' | 'vectors' | 'energy' | 'resistance' | 'ropeForce' | 'trackForce' | 'outsideForce'
+export type CircleHelpTopic = 'ropeStage' | 'strength' | 'trackHeight' | 'trackBottom' | 'trackOutside' | 'trackHalf' | 'observer' | 'vectors' | 'energy' | 'resistance' | 'ropeForce' | 'trackForce' | 'outsideForce'
 export type OpenHelp = (topic: CircleHelpTopic) => void
 export type SpeedUnit = 'si' | 'ratio'
 
@@ -17,6 +17,7 @@ export const COLOR_FORCE = 'var(--circle-force)'
 export const COLOR_WEIGHT = 'var(--circle-weight)'
 export const COLOR_RESISTANCE = 'var(--circle-resistance)'
 export const COLOR_BALL = 'var(--circle-ball)'
+export const COLOR_LIMIT = 'var(--lab-muted)'
 
 export const DEFAULT_PLAYBACK_RATE = 0.5
 
@@ -29,6 +30,8 @@ const ENERGY_SAMPLES_MAX = 3000
 const FORCE_CHART_HEIGHT = 230
 const FORCE_CHART_MARGIN: ChartMargin = { left: 52, right: 22, top: 12, bottom: 58 }
 const VALUE_PADDING = 1.12
+// The breaking strength is drawn when it is at most this many times the largest force on the chart.
+const LIMIT_REACH = 1.5
 const TRAIL_SAMPLES = 40
 const ANGLE_AXES = {
   bottom: { domain: [-180, 180], ticks: [-180, -90, 0, 90, 180], names: new Map([[0, '最低點'], [180, '最高點'], [-180, '最高點']]) },
@@ -205,9 +208,11 @@ type ForceChartProps = {
   yLabel: ReactNode
   negativeNote: string
   leaveLabel: string
+  // Breaking strength of the rope, drawn as a dashed line.
+  limit?: number
 }
 
-export function ForceChart({ run, frame, axis, canPush, ariaLabel, yLabel, negativeNote, leaveLabel }: ForceChartProps) {
+export function ForceChart({ run, frame, axis, canPush, ariaLabel, yLabel, negativeNote, leaveLabel, limit }: ForceChartProps) {
   const [containerRef, width] = useElementWidth<HTMLDivElement>(340)
   // The longer name under the last tick of the top axis needs more room on the right.
   const margin = axis === 'top' ? { ...FORCE_CHART_MARGIN, right: 34 } : FORCE_CHART_MARGIN
@@ -215,11 +220,19 @@ export function ForceChart({ run, frame, axis, canPush, ariaLabel, yLabel, negat
   const right = width - margin.right
   const bottom = height - margin.bottom
   const { domain, ticks, names } = ANGLE_AXES[axis]
-  const yDomain = useMemo(() => paddedDomain([...run.forceTrace.flat(), ...run.forceContinuation].map(([, value]) => value)), [run])
+  const yDomain = useMemo(() => {
+    const values = [...run.forceTrace.flat(), ...run.forceContinuation].map(([, value]) => value)
+    // A breaking strength far above the curve would squash it, so it only joins the scale when it is close.
+    const near = limit !== undefined && limit <= LIMIT_REACH * Math.max(0, ...values)
+    return paddedDomain(near ? [...values, limit] : values)
+  }, [run, limit])
+  const showLimit = limit !== undefined && limit <= yDomain[1]
   const xFor = linearScale(domain[0], domain[1], margin.left, right)
   const yFor = linearScale(yDomain[0], yDomain[1], bottom, margin.top)
   const marker = frame.attached && frame.angle !== null ? { x: xFor(frame.angle * DEGREES), y: yFor(frame.force) } : null
   const showNegative = yDomain[0] < 0
+  // A slack rope or a ball leaving the track drops the force to 0; a snapped rope breaks at the force it needed.
+  const leaveForce = run.outcome === 'snap' ? run.forceContinuation[0]?.[1] ?? 0 : 0
   const tickLabel = (tick: number, x: number) => {
     const name = names.get(tick)
     return (
@@ -236,12 +249,13 @@ export function ForceChart({ run, frame, axis, canPush, ariaLabel, yLabel, negat
         {showNegative && !canPush && <rect x={margin.left} y={yFor(0)} width={Math.max(0, right - margin.left)} height={bottom - yFor(0)} fill="var(--lab-grid)" fillOpacity={0.7} />}
         <ChartFrame width={width} height={height} margin={margin} xFor={xFor} yFor={yFor} xTicks={ticks} yTicks={niceTicks(yDomain[0], yDomain[1], 5)} xLabel={<>角位置 <Sym>θ</Sym></>} yLabel={yLabel} xTickLabel={tickLabel} />
         {showNegative && <text x={(margin.left + right) / 2} y={bottom - 6} textAnchor="middle" fontSize="11" fill="var(--lab-muted)">{negativeNote}</text>}
+        {showLimit && <line x1={margin.left} x2={right} y1={yFor(limit)} y2={yFor(limit)} stroke={COLOR_LIMIT} strokeWidth={1.5} strokeDasharray="6 4" />}
         {run.forceContinuation.length > 1 && <path d={tracePath(run.forceContinuation, xFor, yFor)} fill="none" stroke={COLOR_FORCE} strokeWidth={2} strokeDasharray="5 5" strokeOpacity={0.7} />}
         {run.forceTrace.map((stroke, index) => <path key={index} d={tracePath(stroke, xFor, yFor)} fill="none" stroke={COLOR_FORCE} strokeWidth={2.5} strokeLinejoin="round" />)}
         {run.leaveAngle !== null && (
           <g>
-            <circle cx={xFor(run.leaveAngle * DEGREES)} cy={yFor(0)} r={5} fill="var(--lab-surface)" stroke={COLOR_FORCE} strokeWidth={2} />
-            <text x={xFor(run.leaveAngle * DEGREES) + (axis === 'top' ? 8 : -8)} y={yFor(0) - 9} textAnchor={axis === 'top' ? 'start' : 'end'} fontSize="11" fill="var(--lab-text)">{leaveLabel}</text>
+            <circle cx={xFor(run.leaveAngle * DEGREES)} cy={yFor(leaveForce)} r={5} fill="var(--lab-surface)" stroke={COLOR_FORCE} strokeWidth={2} />
+            <text x={xFor(run.leaveAngle * DEGREES) + (axis === 'top' ? 8 : -8)} y={yFor(leaveForce) - 9} textAnchor={axis === 'top' ? 'start' : 'end'} fontSize="11" fill="var(--lab-text)">{leaveLabel}</text>
           </g>
         )}
         {marker && <circle cx={marker.x} cy={marker.y} r={6.5} fill={COLOR_FORCE} stroke="var(--lab-surface)" strokeWidth={2} />}
@@ -260,7 +274,11 @@ export function RunNote({ run, scene }: { run: MotionRun; scene: SceneKind }) {
   const conserved = run.resistance === 0 ? '，力學能仍然守恆' : ''
   const passes = run.resistance > 0 && run.topPasses > 0 ? `小球通過最高點 ${run.topPasses} 次後，` : ''
   let note: ReactNode = null
-  if (run.outcome === 'leave' && run.leaveAngle !== null) {
+  if (run.outcome === 'snap') {
+    note = run.leaveAngle !== null && Math.abs(run.leaveAngle) > 1e-6
+      ? <>張力在 <AngleTex angle={run.leaveAngle} /> 時超過斷裂強度，繩子斷裂，小球改作拋體運動，模擬到小球離開畫面為止。</>
+      : '小球一出發，需要的張力就超過斷裂強度，繩子斷裂，小球改作平拋運動，模擬到小球離開畫面為止。'
+  } else if (run.outcome === 'leave' && run.leaveAngle !== null) {
     if (scene === 'rope') {
       note = <>{passes}繩子在 <AngleTex angle={run.leaveAngle} /> 時鬆弛，小球改作拋體運動{conserved}。繩子再次拉緊時會猛然拉扯小球、損失力學能，模擬到這裡為止。</>
     } else if (fromTop) {

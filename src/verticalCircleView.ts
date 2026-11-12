@@ -71,6 +71,10 @@ export function largestForce(run: MotionRun, mass: number) {
   for (const stroke of run.forceTrace) {
     for (const [, force] of stroke) largest = Math.max(largest, Math.abs(force))
   }
+  // A rope that snaps at once has no trace, but its tension is drawn at the start.
+  if (run.outcome === 'snap') {
+    for (const [, force] of run.forceContinuation) largest = Math.max(largest, Math.abs(force))
+  }
   return largest
 }
 

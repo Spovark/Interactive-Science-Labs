@@ -25,6 +25,15 @@ const HELP_CONTENT: Record<CircleHelpTopic, ReactNode[]> = {
     ENERGY_LINE,
     '繩子只能拉、不能推；輕桿可以拉，也可以推。這個差別決定了小球能不能繞完一圈。',
   ],
+  strength: [
+    <>斷裂強度 <MathText tex="T_{\max}" /> 是繩子能承受的最大張力，張力超過它，繩子就會斷。只有繩子有這個設定。</>,
+    <>小球在最低點的速率最大，張力也最大：</>,
+    <MathText tex="T = mg + \frac{mv_0^{2}}{R}" display />,
+    <>所以只要最低點需要的張力超過 <MathText tex="T_{\max}" />，小球一出發繩子就斷了，小球改作平拋運動。繩子不斷的條件是：</>,
+    <MathText tex="v_0 \le \sqrt{\left(\frac{T_{\max}}{m} - g\right)R}" display />,
+    <>要完成圓周，<MathText tex="v_0" /> 至少要 <MathText tex="\sqrt{5gR}" />，這時最低點的張力是 <MathText tex="6mg" />。所以 <MathText tex="T_{\max}" /> 小於 <MathText tex="6mg" /> 時，小球不可能繞完一圈：速率太小繩子會鬆弛，速率太大繩子會斷。</>,
+    <>完成圓周需要的速率只和 <MathText tex="R" /> 有關；繩子會不會斷，則和 <MathText tex="R" />、<MathText tex="m" /> 都有關。</>,
+  ],
   trackHeight: [
     <>小球從高度 <MathText tex="H" /> 的地方由靜止滑下，進入半徑 <MathText tex="R" /> 的圓形軌道。軌道的正向力始終和速度垂直，不作功。沒有阻力時，小球的力學能守恆：</>,
     <MathText tex="mgH = \frac{1}{2}mv^{2} + mgh" display />,
@@ -66,13 +75,13 @@ const HELP_CONTENT: Record<CircleHelpTopic, ReactNode[]> = {
     '切線方向的力只有重力的切向分量和阻力，它們改變小球的速率。',
   ],
   trackHalf: [
-    <>小球從半圓形軌道的最低點出發，速率為 <MathText tex="v_0" />，沿著軌道內側往上。軌道只有右半圈，到最高點為止，左邊是水平地面。沒有阻力時，小球的力學能守恆：</>,
+    <>小球從水平地面出發，初速率為 <MathText tex="v_0" />，經過最低點後沿著半圓形軌道內側往上。軌道只有右半圈，到最高點為止。在地面上，正向力和重力抵消，<MathText tex="N = mg" />；一進入軌道，正向力還要提供向心力，在最低點突然增加為 <MathText tex="N = mg + rac{mv_0^{2}}{R}" />。沒有阻力時，小球的力學能守恆：</>,
     <MathText tex="\frac{1}{2}mv^{2} + mgh = \frac{1}{2}mv_0^{2}" display />,
-    <>小球到達最高點後水平往左拋出，作平拋運動。最高點的正向力不能小於 0，所以最高點的速率至少要 <MathText tex="\sqrt{gR}" />，最低點的速率至少要 <MathText tex="\sqrt{5gR}" />。</>,
+    <>小球到達最高點後水平往左拋出，作平拋運動。最高點的正向力不能小於 0，所以最高點的速率至少要 <MathText tex="\sqrt{gR}" />，所以 <MathText tex="v_0" /> 至少要 <MathText tex="\sqrt{5gR}" />。</>,
     <>從高度 <MathText tex="2R" /> 落到地面的時間是 <MathText tex="\sqrt{\frac{4R}{g}}" />，所以落地點和最低點的水平距離是：</>,
     <MathText tex="d = v_1\sqrt{\frac{4R}{g}} \ge 2R" display />,
     <><MathText tex="v_1" /> 是最高點的速率，<MathText tex="v_1 = \sqrt{gR}" /> 時 <MathText tex="d" /> 最小，等於 <MathText tex="2R" />。</>,
-    <>最低點的速率介於 <MathText tex="\sqrt{2gR}" /> 和 <MathText tex="\sqrt{5gR}" /> 之間時，小球在到達最高點之前離開軌道；不超過 <MathText tex="\sqrt{2gR}" /> 時，小球滑回最低點，沿地面往左離開。</>,
+    <><MathText tex="v_0" /> 介於 <MathText tex="\sqrt{2gR}" /> 和 <MathText tex="\sqrt{5gR}" /> 之間時，小球在到達最高點之前離開軌道；不超過 <MathText tex="\sqrt{2gR}" /> 時，小球滑回最低點，沿地面往左離開。</>,
     ENERGY_LINE,
   ],
   energy: [

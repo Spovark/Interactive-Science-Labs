@@ -3,16 +3,17 @@ import MathText from './MathText'
 import { clamp, formatValue, snap } from './chartUtils'
 import { horizontalDrag, usePlayback } from './labHooks'
 import { ChartHeading, Legend, LegendItem, Segmented, Slider, Sym, TimelineBar } from './LabShared'
-import { COLOR_BALL, COLOR_FORCE, COLOR_POTENTIAL, COLOR_TOTAL, DEFAULT_PLAYBACK_RATE, EnergyChart, EnergyReadout, FlightTrail, ForceChart, MotionThresholds, ResistanceSlider, RunNote, SpeedControl, type OpenHelp, type SpeedUnit } from './VerticalCircleShared'
+import { COLOR_BALL, COLOR_FORCE, COLOR_LIMIT, COLOR_POTENTIAL, COLOR_TOTAL, DEFAULT_PLAYBACK_RATE, EnergyChart, EnergyReadout, FlightTrail, ForceChart, MotionThresholds, ResistanceSlider, RunNote, SpeedControl, type OpenHelp, type SpeedUnit } from './VerticalCircleShared'
 import { ForceDiagram, StageCard, StageToolbar, VectorLegend } from './VerticalCircleStage'
-import { GRAVITY, solveRope, type Link, type MotionFrame, type MotionRun, type RopeInput } from './verticalCirclePhysics'
+import { GRAVITY, solveRope, TRACK_RADIUS, type Link, type MotionFrame, type MotionRun, type RopeInput } from './verticalCirclePhysics'
 import { activeThreshold, chipLabel, thresholdRows } from './verticalCircleText'
 import { forceScaleFor, largestForce, useStageCamera, useStageOptions, type StageOptions, type ViewBox } from './verticalCircleView'
 
 const RADIUS_RANGE = { min: 0.5, max: 1.5, step: 0.1 }
-const MASS_RANGE = { min: 0.5, max: 2, step: 0.1 }
+const MASS_RANGE = { min: 0.5, max: 5, step: 0.1 }
+const STRENGTH_RANGE = { min: 10, max: 1000, step: 10 }
 const SPEED_RANGE = { min: 1, max: 12, step: 0.1 }
-const DEFAULT_SETTINGS: RopeInput = { link: 'rope', radius: 1, mass: 1, speed: 7.5, resistance: 0 }
+const DEFAULT_SETTINGS: RopeInput = { link: 'rope', radius: TRACK_RADIUS, mass: 1, speed: 7.5, resistance: 0, strength: 200 }
 const LINK_OPTIONS: { value: Link; label: string }[] = [{ value: 'rope', label: '繩子' }, { value: 'rod', label: '輕桿' }]
 // The space under h = 0 leaves room for the weight arrow of a ball at the lowest point.
 const VIEW: ViewBox = { left: -1.75, right: 1.75, top: 3.6, bottom: -0.7 }
@@ -27,6 +28,8 @@ const FORCE_LENGTH = 0.85
 // The readouts cover the top of the animation, so the line is left out when it would run under them.
 const ENERGY_LABEL_ROOM = 50
 const SLACK_SAG = 0.6
+// Length of the piece of rope left hanging from the pivot after it snaps, as a fraction of the radius.
+const SNAPPED_LENGTH = 0.3
 
 type StageProps = {
   run: MotionRun
@@ -53,6 +56,7 @@ function RopeStage({ run, frame, time, settings, options, editable, onSpeedChang
   const groundY = toY(0)
   const sag = Math.sqrt(Math.max(0, radiusPixels ** 2 - (ballX - pivotX) ** 2 - (ballY - pivotY) ** 2)) * SLACK_SAG
   const ropePath = `M${pivotX} ${pivotY}Q${(pivotX + ballX) / 2} ${(pivotY + ballY) / 2 + sag} ${ballX} ${ballY}`
+  const snapped = run.outcome === 'snap' && !frame.attached
   // The handle sits on the tip of the velocity arrow, which starts at the edge of the ball.
   const handleX = ballX + BALL_RADIUS + speed * velocityScale
   const handleY = ballY - frame.inwardY * VELOCITY_SHIFT
@@ -85,7 +89,9 @@ function RopeStage({ run, frame, time, settings, options, editable, onSpeedChang
             </g>
           )}
           {link === 'rope'
-            ? <path d={ropePath} fill="none" stroke="var(--lab-text)" strokeWidth={1.8} />
+            ? snapped
+              ? <line x1={pivotX} y1={pivotY} x2={pivotX} y2={pivotY + SNAPPED_LENGTH * radiusPixels} stroke="var(--lab-text)" strokeWidth={1.8} />
+              : <path d={ropePath} fill="none" stroke="var(--lab-text)" strokeWidth={1.8} />
             : <line x1={pivotX} y1={pivotY} x2={ballX} y2={ballY} stroke="var(--lab-muted)" strokeWidth={5} strokeLinecap="round" />}
           <circle cx={pivotX} cy={pivotY} r={4.5} fill="var(--lab-surface)" stroke="var(--lab-text)" strokeWidth={2} />
           <FlightTrail run={run} time={time} place={place} />
@@ -107,6 +113,7 @@ function RopeStage({ run, frame, time, settings, options, editable, onSpeedChang
 function ForceSummary({ run, settings }: { run: MotionRun; settings: RopeInput }) {
   const { mass, radius, speed } = settings
   const name = settings.link === 'rope' ? '張力' : '作用力'
+  if (run.outcome === 'snap') return <p className="circle-force-values">最低點需要的張力 <b>{formatValue((mass * speed ** 2) / radius + mass * GRAVITY)}</b> N，超過斷裂強度 <b>{formatValue(settings.strength, 0)}</b> N</p>
   if (run.resistance > 0) return <p className="circle-force-values">有阻力時力學能逐漸減少，小球每次經過同一個位置，{name}都比前一次小。</p>
   const bottom = (mass * speed ** 2) / radius + mass * GRAVITY
   if (run.outcome !== 'loop') return <p className="circle-force-values">最低點 <b>{formatValue(bottom)}</b> N</p>
@@ -125,7 +132,7 @@ function VerticalCircleRope({ active, onHelp }: { active: boolean; onHelp: OpenH
   const frame = run.frameAt(time)
   const editable = playback.position === 0 && !playback.playing
   const scene = settings.link
-  const rows = useMemo(() => thresholdRows(scene, settings.radius), [scene, settings.radius])
+  const rows = useMemo(() => thresholdRows(scene, settings.radius, settings.mass, settings.strength), [scene, settings.radius, settings.mass, settings.strength])
   const isRope = settings.link === 'rope'
 
   const update = (change: Partial<RopeInput>) => {
@@ -155,9 +162,10 @@ function VerticalCircleRope({ active, onHelp }: { active: boolean; onHelp: OpenH
       <aside className="lab-panel">
         <h2>小球設定</h2>
         <Segmented label="連接方式" options={LINK_OPTIONS} value={settings.link} onChange={(link) => update({ link })} />
+        <SpeedControl label={<>最低點的速率 <MathText tex="v_0" /></>} speed={settings.speed} unitSpeed={Math.sqrt(GRAVITY * settings.radius)} {...SPEED_RANGE} unit={speedUnit} onUnitChange={setSpeedUnit} onChange={(speed) => update({ speed })} />
         <Slider label={<>半徑 <MathText tex="R" /></>} {...RADIUS_RANGE} unit="m" value={settings.radius} onChange={changeRadius} />
         <Slider label={<>質量 <MathText tex="m" /></>} {...MASS_RANGE} unit="kg" value={settings.mass} onChange={(mass) => update({ mass })} />
-        <SpeedControl label={<>最低點的速率 <MathText tex="v_0" /></>} speed={settings.speed} unitSpeed={Math.sqrt(GRAVITY * settings.radius)} {...SPEED_RANGE} unit={speedUnit} onUnitChange={setSpeedUnit} onChange={(speed) => update({ speed })} />
+        {isRope && <Slider label={<>斷裂強度 <MathText tex="T_{\max}" /></>} extra={<button className="lab-help-button lab-help-small" onClick={() => onHelp('strength')} aria-label="開啟斷裂強度說明">?</button>} {...STRENGTH_RANGE} unit="N" digits={0} value={settings.strength} onChange={(strength) => update({ strength })} />}
         <ResistanceSlider value={settings.resistance} onChange={(resistance) => update({ resistance })} onHelp={onHelp} />
         <MotionThresholds title="運動情形（沒有阻力時）" rows={rows} active={activeThreshold(run, scene)} />
         <button className="lab-secondary" onClick={reset}>重設</button>
@@ -180,10 +188,11 @@ function VerticalCircleRope({ active, onHelp }: { active: boolean; onHelp: OpenH
             <ChartHeading title={isRope ? '張力' : '桿的作用力'} help="ropeForce" onHelp={onHelp}><span className="lab-caption">單位：N，指向圓心為正</span></ChartHeading>
             <Legend>
               <LegendItem color={COLOR_FORCE} kind="line">{isRope ? '張力' : '作用力'}</LegendItem>
-              {run.forceContinuation.length > 1 && <LegendItem color={COLOR_FORCE} kind="dashed">需要繩子推（做不到）</LegendItem>}
+              {run.forceContinuation.length > 1 && <LegendItem color={COLOR_FORCE} kind="dashed">{run.outcome === 'snap' ? '繩子沒斷時需要的張力' : '需要繩子推（做不到）'}</LegendItem>}
+              {isRope && <LegendItem color={COLOR_LIMIT} kind="dashed">斷裂強度</LegendItem>}
               <LegendItem color={COLOR_FORCE} kind="dot">目前 <b>{frame.attached ? formatValue(frame.force) : '0.0'}</b></LegendItem>
             </Legend>
-            <ForceChart run={run} frame={frame} axis="bottom" canPush={!isRope} ariaLabel={`${isRope ? '張力' : '桿的作用力'}與角位置的關係圖`} yLabel={isRope ? '張力（N）' : '作用力（N）'} negativeNote={isRope ? '繩子只能拉，張力不能小於 0' : '負值：桿把小球往外推'} leaveLabel="鬆弛" />
+            <ForceChart run={run} frame={frame} axis="bottom" canPush={!isRope} ariaLabel={`${isRope ? '張力' : '桿的作用力'}與角位置的關係圖`} yLabel={isRope ? '張力（N）' : '作用力（N）'} negativeNote={isRope ? '繩子只能拉，張力不能小於 0' : '負值：桿把小球往外推'} leaveLabel={run.outcome === 'snap' ? '斷裂' : '鬆弛'} limit={isRope ? settings.strength : undefined} />
             <ForceSummary run={run} settings={settings} />
           </div>
         </div>
