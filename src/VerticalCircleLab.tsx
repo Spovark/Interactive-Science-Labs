@@ -1,4 +1,5 @@
 import { useState, type ReactNode } from 'react'
+import { HelpDialog, LabTabs } from './LabShared'
 import MathText from './MathText'
 import VerticalCircleRope from './VerticalCircleRope'
 import type { CircleHelpTopic } from './VerticalCircleShared'
@@ -47,6 +48,32 @@ const HELP_CONTENT: Record<CircleHelpTopic, ReactNode[]> = {
     <><MathText tex="\theta" /> 從最高點量起。小球越往下滑，速率越大、需要的向心力越大，重力沿半徑方向的分力卻越小。正向力降到 0 時，小球就離開軌道，這時：</>,
     <MathText tex="\cos\theta = \frac{2}{3} + \frac{v_0^{2}}{3gR}" display />,
     <><MathText tex="v_0 \ge \sqrt{gR}" /> 時，最高點的重力已經不足以提供需要的向心力，小球一出發就離開軌道。</>,
+  ],
+  observer: [
+    '「地面」是站在地面上觀察。地面是慣性坐標系，小球只受到實際存在的力：重力、繩子的張力或軌道的正向力，以及阻力。',
+    '「小球」是跟著小球一起移動的觀察者。畫面的上下方向不變，小球固定在中央，看起來是圓心、軌道和地面在移動。',
+    <>小球有加速度 <MathText tex="\vec{a}" />，所以這是非慣性坐標系。在這個坐標系裡要讓牛頓運動定律成立，必須再加上一個假想力，大小是 <MathText tex="ma" />，方向和加速度相反。<MathText tex="m" /> 是小球的質量。</>,
+    '在自己的坐標系裡小球靜止不動，所以實際的力加上假想力，合力為 0。',
+    <>假想力沿半徑方向的分量指向圓外，就是離心力，大小是 <MathText tex="\frac{mv^{2}}{R}" />，<MathText tex="v" /> 是小球相對於地面的速率，<MathText tex="R" /> 是圓周的半徑。沿切線方向的分量，和重力的切向分量、阻力抵消。</>,
+    '假想力不是任何物體施加的力，沒有反作用力，圖上用虛線箭頭表示。小球離開圓周後只畫出整個假想力，它正好和重力、阻力抵消。',
+  ],
+  vectors: [
+    '同一個畫面裡，所有力的箭頭都從小球中心畫起，使用同一個比例尺，箭頭的長度和力的大小成正比。速度的箭頭另有自己的比例尺。兩個比例尺標在動畫下方，改變設定或拉近鏡頭時會跟著調整。',
+    '「徑向與切向分量」把重力分解成沿半徑方向和沿切線方向的兩個分量。虛線和兩個分量圍成矩形，重力是矩形的對角線。',
+    <>向心力不是另一個實際存在的力，而是作圓周運動需要的、指向圓心的合力，大小是 <MathText tex="F_c = \frac{mv^{2}}{R}" />，必須由張力或正向力，加上重力的徑向分量來提供。<MathText tex="m" /> 是質量，<MathText tex="v" /> 是速率，<MathText tex="R" /> 是半徑。圖上用虛線箭頭畫在半徑的旁邊。</>,
+    '「實際力的徑向合力」把重力的徑向分量平移到張力或正向力箭頭的尖端，兩個箭頭頭尾相接。從小球到終點就是實際的力在徑向的合力，終點正好和向心力箭頭的尖端對齊。',
+    '以小球為坐標系時，再接上離心力的箭頭，三個箭頭會回到小球，表示徑向的合力為 0。',
+    '切線方向的力只有重力的切向分量和阻力，它們改變小球的速率。',
+  ],
+  trackHalf: [
+    <>小球從半圓形軌道的最低點出發，速率為 <MathText tex="v_0" />，沿著軌道內側往上。軌道只有右半圈，到最高點為止，左邊是水平地面。沒有阻力時，小球的力學能守恆：</>,
+    <MathText tex="\frac{1}{2}mv^{2} + mgh = \frac{1}{2}mv_0^{2}" display />,
+    <>小球到達最高點後水平往左拋出，作平拋運動。最高點的正向力不能小於 0，所以最高點的速率至少要 <MathText tex="\sqrt{gR}" />，最低點的速率至少要 <MathText tex="\sqrt{5gR}" />。</>,
+    <>從高度 <MathText tex="2R" /> 落到地面的時間是 <MathText tex="\sqrt{\frac{4R}{g}}" />，所以落地點和最低點的水平距離是：</>,
+    <MathText tex="d = v_1\sqrt{\frac{4R}{g}} \ge 2R" display />,
+    <><MathText tex="v_1" /> 是最高點的速率，<MathText tex="v_1 = \sqrt{gR}" /> 時 <MathText tex="d" /> 最小，等於 <MathText tex="2R" />。</>,
+    <>最低點的速率介於 <MathText tex="\sqrt{2gR}" /> 和 <MathText tex="\sqrt{5gR}" /> 之間時，小球在到達最高點之前離開軌道；不超過 <MathText tex="\sqrt{2gR}" /> 時，小球滑回最低點，沿地面往左離開。</>,
+    ENERGY_LINE,
   ],
   energy: [
     <>動能 <MathText tex="K = \frac{1}{2}mv^{2}" />，重力位能 <MathText tex="U = mgh" />，以畫面上 <MathText tex="h = 0" /> 的位置作為重力位能的零點。兩者的和就是力學能 <MathText tex="E" />：</>,
@@ -101,13 +128,11 @@ function VerticalCircleLab() {
       <main className="lab-main">
         <h1>鉛直圓周運動</h1>
         <p className="lab-intro">改變小球的速率或釋放高度，觀察動能和重力位能如何互相轉換，以及小球要多快才能繞完一圈。</p>
-        <nav className="circle-tabs" aria-label="實驗主題">
-          {SCENES.map((item) => <button key={item.id} className="circle-tab" aria-current={scene === item.id ? 'true' : undefined} onClick={() => setScene(item.id)}>{item.label}</button>)}
-        </nav>
-        <div className="lab-layout circle-scene" hidden={scene !== 'rope'}><VerticalCircleRope active={scene === 'rope'} onHelp={setHelpTopic} /></div>
-        <div className="lab-layout circle-scene" hidden={scene !== 'track'}><VerticalCircleTrack active={scene === 'track'} onHelp={setHelpTopic} /></div>
+        <LabTabs tabs={SCENES} value={scene} onChange={setScene} />
+        <div className="lab-layout lab-scene" hidden={scene !== 'rope'}><VerticalCircleRope active={scene === 'rope'} onHelp={setHelpTopic} /></div>
+        <div className="lab-layout lab-scene" hidden={scene !== 'track'}><VerticalCircleTrack active={scene === 'track'} onHelp={setHelpTopic} /></div>
       </main>
-      {helpTopic && <div className="lab-overlay" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) setHelpTopic(null) }}><section className="lab-dialog" role="dialog" aria-modal="true" aria-labelledby="circle-help-title"><h2 id="circle-help-title">說明</h2>{HELP_CONTENT[helpTopic].map((paragraph, index) => <p key={index}>{paragraph}</p>)}<button className="lab-secondary" onClick={() => setHelpTopic(null)}>關閉</button></section></div>}
+      {helpTopic && <HelpDialog paragraphs={HELP_CONTENT[helpTopic]} onClose={() => setHelpTopic(null)} />}
     </div>
   )
 }

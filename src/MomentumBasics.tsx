@@ -1,8 +1,9 @@
 import { useState, type ReactNode } from 'react'
 import MathText from './MathText'
-import { Cart, CartGhost, ChartFrame, ChartHeading, COLOR_A, COLOR_TOTAL, LabSlider, Legend, LegendItem, Ruler, Sym, type ChartMargin, type OpenHelp } from './MomentumShared'
-import { clamp, formatValue, linearScale, niceTicks, snap, tracePath } from './momentumChartUtils'
-import { horizontalDrag, prefersReducedMotion, useElementWidth, useWrappingPosition } from './momentumHooks'
+import { ChartFrame, ChartHeading, Legend, LegendItem, Slider, Sym, type ChartMargin } from './LabShared'
+import { Cart, CartGhost, COLOR_A, COLOR_TOTAL, Ruler, type OpenHelp } from './MomentumShared'
+import { clamp, formatValue, linearScale, niceTicks, snap, tracePath } from './chartUtils'
+import { horizontalDrag, prefersReducedMotion, useElementWidth, useWrappingPosition } from './labHooks'
 import { CART_WIDTH, TRACK_LENGTH } from './momentumPhysics'
 
 const MASS_RANGE = { min: 1, max: 4, step: 0.5 }
@@ -43,7 +44,7 @@ function BasicsStage({ mass, speed, running, active }: CartState & { running: bo
   }))
 
   return (
-    <div className="momentum-stage" ref={stageRef}>
+    <div className="lab-stage" ref={stageRef}>
       <svg width="100%" height={STAGE_HEIGHT} role="img" aria-label={`質量 ${mass} 公斤的滑車以 ${formatValue(speed)} 公尺每秒運動`}>
         <Ruler xFor={xFor} ticks={ticks} minorTicks={minorTicks} y={RAIL_Y} width={width} />
         {strobes.map((strobe, index) => <CartGhost key={index} x={xFor(strobe.x)} railY={RAIL_Y} width={cartWidth} color={COLOR_A} opacity={strobe.opacity} />)}
@@ -72,11 +73,11 @@ function SpeedPlot({ ariaLabel, yDomain, yTicks, yLabel, onSpeedChange, children
   const speedAt = linearScale(margin.left, right, -SPEED_LIMIT, SPEED_LIMIT)
 
   return (
-    <div ref={containerRef} className="momentum-chart-box">
+    <div ref={containerRef} className="lab-chart-box">
       <svg width="100%" height={CHART_HEIGHT} role="img" aria-label={ariaLabel}>
         <ChartFrame width={width} height={CHART_HEIGHT} margin={margin} xFor={xFor} yFor={yFor} xTicks={niceTicks(-SPEED_LIMIT, SPEED_LIMIT, width < 300 ? 4 : 8)} yTicks={yTicks} xLabel={<>速度 <Sym>v</Sym>（m/s）</>} yLabel={yLabel} />
         {children(xFor, yFor)}
-        <rect className="momentum-drag" x={margin.left} y={margin.top} width={Math.max(0, right - margin.left)} height={bottom - margin.top} fill="transparent" {...horizontalDrag((x) => onSpeedChange(clamp(snap(speedAt(x), SPEED_STEP), -SPEED_LIMIT, SPEED_LIMIT)))} />
+        <rect className="lab-drag" x={margin.left} y={margin.top} width={Math.max(0, right - margin.left)} height={bottom - margin.top} fill="transparent" {...horizontalDrag((x) => onSpeedChange(clamp(snap(speedAt(x), SPEED_STEP), -SPEED_LIMIT, SPEED_LIMIT)))} />
       </svg>
     </div>
   )
@@ -155,24 +156,24 @@ function MomentumBasics({ active, onHelp }: { active: boolean; onHelp: OpenHelp 
     <>
       <aside className="lab-panel">
         <h2>滑車設定</h2>
-        <LabSlider label={<>質量 <MathText tex="m" /></>} {...MASS_RANGE} unit="kg" value={mass} onChange={(next) => setState((current) => ({ ...current, mass: next }))} />
-        <LabSlider label={<>速度 <MathText tex="v" /></>} min={-SPEED_LIMIT} max={SPEED_LIMIT} step={SPEED_STEP} unit="m/s" value={speed} onChange={changeSpeed} />
-        <div className="momentum-button-row">
+        <Slider label={<>質量 <MathText tex="m" /></>} {...MASS_RANGE} unit="kg" value={mass} onChange={(next) => setState((current) => ({ ...current, mass: next }))} />
+        <Slider label={<>速度 <MathText tex="v" /></>} min={-SPEED_LIMIT} max={SPEED_LIMIT} step={SPEED_STEP} unit="m/s" value={speed} onChange={changeSpeed} />
+        <div className="lab-button-row">
           <button className="lab-secondary" disabled={speed === 0} onClick={() => setBase(state)}>設為比較基準</button>
           <button className="lab-secondary" onClick={reset}>重設</button>
         </div>
         <p className="lab-note">拖曳圖上的點，把速度變成 2 倍，看動量和動能各變成幾倍；再試試把質量變成 2 倍。</p>
       </aside>
       <section className="lab-plots">
-        <div className="lab-chart momentum-stage-card">
-          <ChartHeading title="滑車運動"><button className="lab-secondary momentum-small-button" onClick={() => setRunning((current) => !current)}>{running ? '暫停' : '繼續'}</button></ChartHeading>
+        <div className="lab-chart lab-stage-card">
+          <ChartHeading title="滑車運動"><button className="lab-secondary lab-small-button" onClick={() => setRunning((current) => !current)}>{running ? '暫停' : '繼續'}</button></ChartHeading>
           <BasicsStage mass={mass} speed={speed} running={running} active={active} />
           <div className="lab-metrics momentum-metrics">
             <div><span>動量 <MathText tex="p" /></span><b>{formatValue(momentum)} kg·m/s</b><small>基準的 {formatValue(momentumRatio, 2)} 倍</small></div>
             <div><span>動能 <MathText tex="K" /></span><b>{formatValue(energy)} J</b><small>基準的 {formatValue(energyRatio, 2)} 倍</small></div>
           </div>
         </div>
-        <div className="momentum-chart-pair">
+        <div className="lab-chart-pair">
           <div className="lab-chart">
             <ChartHeading title="動量－速度圖" help="momentumSpeed" onHelp={onHelp} />
             <SpeedPlot ariaLabel="動量與速度的關係圖，三角形面積為動能" yDomain={[-MOMENTUM_LIMIT, MOMENTUM_LIMIT]} yTicks={MOMENTUM_TICKS} yLabel={<>動量 <Sym>p</Sym>（kg·m/s）</>} onSpeedChange={changeSpeed}>

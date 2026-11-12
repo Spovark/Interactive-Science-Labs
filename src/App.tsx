@@ -17,7 +17,7 @@ const LABS = [
   {
     path: labPath,
     tag: '波動學',
-    title: '諧波疊加',
+    title: '波的疊加',
     text: '調整不同頻率的諧波，觀察它們如何組合成週期波形。',
     Icon: SquareWaveIcon,
     Art: SquareWaveArt,

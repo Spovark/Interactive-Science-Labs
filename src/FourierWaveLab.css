@@ -27,7 +27,6 @@
 .lab-page .fourier-source button:disabled { color: var(--lab-muted); cursor: not-allowed; opacity: .55; }
 .fourier-sound .lab-control-head { gap: 4px; }
 .fourier-page .lab-control-head label { white-space: nowrap; }
-.fourier-unit-input { display: flex; align-items: baseline; gap: 3px; font-weight: 400; }
 .lab-number-input.fourier-frequency-input { width: calc(4ch + 22px); }
 .fourier-sound-limit { display: grid; margin: 6px 0 0; color: var(--lab-warning-text); font-size: .78rem; line-height: 1.5; }
 .fourier-sound-limit > span { grid-area: 1 / 1; }

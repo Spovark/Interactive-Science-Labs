@@ -1,5 +1,5 @@
 import { useEffect, useState, type ComponentType } from 'react'
-import { prefersReducedMotion } from './momentumHooks'
+import { prefersReducedMotion } from './labHooks'
 
 const SCENE_MILLISECONDS = 5000
 

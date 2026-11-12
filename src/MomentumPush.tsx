@@ -1,8 +1,9 @@
 import { useMemo, useState, type ReactNode } from 'react'
 import MathText from './MathText'
-import { Arrow, Cart, ChartHeading, COLOR_A, COLOR_B, COLOR_TOTAL, CART_BODY_CENTER, LabSlider, Ruler, Sym, TimelineBar, type OpenHelp } from './MomentumShared'
-import { formatTick, formatValue, linearScale, niceCeil, zeroBasedTicks } from './momentumChartUtils'
-import { useElementWidth, useTimeline } from './momentumHooks'
+import { ChartHeading, Segmented, Slider, Sym, TimelineBar } from './LabShared'
+import { Arrow, Cart, CART_BODY_CENTER, COLOR_A, COLOR_B, COLOR_TOTAL, Ruler, type OpenHelp } from './MomentumShared'
+import { formatTick, formatValue, linearScale, niceCeil, zeroBasedTicks } from './chartUtils'
+import { useElementWidth, usePlayback } from './labHooks'
 import { solvePush, type PushFrame, type PushMode, type PushRun } from './momentumPhysics'
 
 const MASS_RANGE = { min: 1, max: 6, step: 0.5 }
@@ -10,6 +11,7 @@ const FORCE_RANGE = { min: 2, max: 10, step: 1 }
 const TIME_RANGE = { min: 1, max: 4, step: 0.5 }
 const DISPLACEMENT_RANGE = { min: 2, max: 12, step: 1 }
 const DEFAULT_SETTINGS = { massA: 1, massB: 3, force: 6, mode: 'time' as PushMode, time: 2, displacement: 6 }
+const MODE_OPTIONS: { value: PushMode; label: string }[] = [{ value: 'time', label: '相同時間' }, { value: 'displacement', label: '相同位移' }]
 const STAGE_HEIGHT = 226
 const LANE_Y = [94, 194]
 const STAGE_LEFT = 74
@@ -43,7 +45,7 @@ function PushStage({ settings, run, time }: { settings: PushSettings; run: PushR
   ]
 
   return (
-    <div className="momentum-stage" ref={stageRef}>
+    <div className="lab-stage" ref={stageRef}>
       <svg width="100%" height={STAGE_HEIGHT} role="img" aria-label="兩台滑車受相同的力由靜止加速">
         <line x1={xFor(0)} x2={xFor(0)} y1={12} y2={LANE_Y[1]} stroke="var(--lab-grid)" strokeWidth={1.5} />
         {mode === 'displacement' && (
@@ -103,7 +105,7 @@ function ForceAreaChart({ ariaLabel, xMax, xLabel, force, rows, playhead }: Forc
   const barHeight = (force / AREA_FORCE_AXIS) * AREA_ROW_HEIGHT
 
   return (
-    <div ref={containerRef} className="momentum-chart-box">
+    <div ref={containerRef} className="lab-chart-box">
       <svg width="100%" height={height} role="img" aria-label={ariaLabel}>
         {ticks.map((tick) => (
           <g key={tick}>
@@ -142,7 +144,7 @@ function MomentumPush({ active, onHelp }: { active: boolean; onHelp: OpenHelp })
   const [settings, setSettings] = useState<PushSettings>(DEFAULT_SETTINGS)
   const { massA, massB, force, mode, time: timeLimit, displacement } = settings
   const run = useMemo(() => solvePush({ massA, massB, force, mode, limit: mode === 'time' ? timeLimit : displacement }), [displacement, force, massA, massB, mode, timeLimit])
-  const timeline = useTimeline(run.endTime, active)
+  const timeline = usePlayback(run.endTime, active)
   const time = timeline.position
   const frameA: PushFrame = run.cartA.frameAt(time)
   const frameB: PushFrame = run.cartB.frameAt(time)
@@ -176,34 +178,28 @@ function MomentumPush({ active, onHelp }: { active: boolean; onHelp: OpenHelp })
     <>
       <aside className="lab-panel">
         <h2>實驗設定</h2>
-        <div className="lab-control">
-          <span className="momentum-field-label">比較條件</span>
-          <div className="momentum-segmented">
-            <button aria-pressed={mode === 'time'} onClick={() => changeMode('time')}>相同時間</button>
-            <button aria-pressed={mode === 'displacement'} onClick={() => changeMode('displacement')}>相同位移</button>
-          </div>
-        </div>
+        <Segmented label="比較條件" options={MODE_OPTIONS} value={mode} onChange={changeMode} />
         {mode === 'time'
-          ? <LabSlider label="作用時間" {...TIME_RANGE} unit="s" value={timeLimit} onChange={(next) => update({ time: next })} />
-          : <LabSlider label="作用位移" {...DISPLACEMENT_RANGE} digits={0} unit="m" value={displacement} onChange={(next) => update({ displacement: next })} />}
-        <LabSlider label={<>推力 <MathText tex="F" /></>} {...FORCE_RANGE} digits={0} unit="N" value={force} onChange={(next) => update({ force: next })} />
-        <LabSlider label="A 車質量" {...MASS_RANGE} unit="kg" value={massA} onChange={(next) => update({ massA: next })} />
-        <LabSlider label="B 車質量" {...MASS_RANGE} unit="kg" value={massB} onChange={(next) => update({ massB: next })} />
+          ? <Slider label="作用時間" {...TIME_RANGE} unit="s" value={timeLimit} onChange={(next) => update({ time: next })} />
+          : <Slider label="作用位移" {...DISPLACEMENT_RANGE} digits={0} unit="m" value={displacement} onChange={(next) => update({ displacement: next })} />}
+        <Slider label={<>推力 <MathText tex="F" /></>} {...FORCE_RANGE} digits={0} unit="N" value={force} onChange={(next) => update({ force: next })} />
+        <Slider label="A 車質量" {...MASS_RANGE} unit="kg" value={massA} onChange={(next) => update({ massA: next })} />
+        <Slider label="B 車質量" {...MASS_RANGE} unit="kg" value={massB} onChange={(next) => update({ massB: next })} />
         <p className="lab-note">兩車都從靜止開始，受到相同的力。按下播放前先猜猜看：誰的動量比較大？誰的動能比較大？</p>
       </aside>
       <section className="lab-plots">
-        <div className="lab-chart momentum-stage-card">
+        <div className="lab-chart lab-stage-card">
           <ChartHeading title="兩車比較" />
           <PushStage settings={settings} run={run} time={time} />
           <TimelineBar position={time} length={run.endTime} playing={timeline.playing} time={time} onToggle={timeline.toggle} onRewind={timeline.rewind} onSeek={seek} />
         </div>
-        <div className="momentum-chart-pair">
+        <div className="lab-chart-pair">
           <div className="lab-chart">
-            <ChartHeading title="力－時間圖" help="impulse" onHelp={onHelp}>{finished && <span className="momentum-chip">{compareText(frameA.momentum, frameB.momentum, '動量')}</span>}</ChartHeading>
+            <ChartHeading title="力－時間圖" help="impulse" onHelp={onHelp}>{finished && <span className="lab-chip">{compareText(frameA.momentum, frameB.momentum, '動量')}</span>}</ChartHeading>
             <ForceAreaChart ariaLabel="兩車的力與時間關係，面積為衝量" xMax={timeAxis} xLabel={<>時間 <Sym>t</Sym>（s）</>} force={force} rows={impulseRows} playhead={time} />
           </div>
           <div className="lab-chart">
-            <ChartHeading title="力－位移圖" help="work" onHelp={onHelp}>{finished && <span className="momentum-chip">{compareText(frameA.kinetic, frameB.kinetic, '動能')}</span>}</ChartHeading>
+            <ChartHeading title="力－位移圖" help="work" onHelp={onHelp}>{finished && <span className="lab-chip">{compareText(frameA.kinetic, frameB.kinetic, '動能')}</span>}</ChartHeading>
             <ForceAreaChart ariaLabel="兩車的力與位移關係，面積為功" xMax={displacementAxis} xLabel={<>位移 <Sym>x</Sym>（m）</>} force={force} rows={workRows} />
           </div>
         </div>

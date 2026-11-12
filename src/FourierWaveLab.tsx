@@ -1,5 +1,6 @@
 import { Fragment, useEffect, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore, type ReactNode } from 'react'
 import FourierSpectrum from './FourierSpectrum'
+import { HelpDialog, Slider } from './LabShared'
 import { DEFAULT_FUNDAMENTAL, DEFAULT_VOLUME, FourierSoundPlayer, MAX_AUDIBLE_FREQUENCY, MAX_FUNDAMENTAL, MIN_FUNDAMENTAL, makeSoundWave, maxVolumeFor, volumeGain, type SeriesBasis } from './fourierSound'
 import MathText from './MathText'
 import './LabPage.css'
@@ -32,48 +33,33 @@ const volumeCapNotice = (percent: number) => `振幅太大，音量最高只能�
 type HelpTopic = 'sound' | 'harmonics' | 'wave' | 'spectrum' | 'rms'
 type SoundSource = 'sum' | 'target'
 
-const HELP_CONTENT: Record<HelpTopic, { title: string; paragraphs: ReactNode[] }> = {
-  sound: {
-    title: '說明',
-    paragraphs: [
-      <>開啟聲音後，會播放畫面上的合成波。合成波每秒重複 <MathText tex="f_1" /> 次，第 <MathText tex="n" /> 諧波的頻率是 <MathText tex="n f_1" />，振幅和正負號都和滑桿相同。頻率超過 {MAX_AUDIBLE_FREQUENCY} Hz 的諧波人耳聽不到，所以不播放。</>,
-      `選擇播放「理想波形」時，會加入頻率在 ${MAX_AUDIBLE_FREQUENCY} Hz 以內的所有諧波，聽起來就是理想波形，可以和合成波比較。自訂波形沒有理想波形，只能播放合成波。`,
-      '同一個波形，振幅愈大，聲音愈大；不同形狀的波，就算最高點一樣高，聽起來也不一定一樣大聲。音量滑桿的刻度依照耳朵的感覺設計：滑桿每移動相同的距離，聲音大約放大或縮小相同的倍率。振幅大到會破音時，音量滑桿會自動調低，最高只能調到不會破音的位置。',
-    ],
-  },
-  harmonics: {
-    title: '說明',
-    paragraphs: [
-      '振幅係數決定每個諧波的大小，數值的絕對值愈大，這個諧波在合成波中占的份量愈大。',
-      '振幅係數可以是負的，代表這個諧波的波形上下顛倒，也就是相位差半個週期。有些波形一定要用負值才合成得出來，例如三角波的第 3、7 諧波。',
-    ],
-  },
-  wave: {
-    title: '說明',
-    paragraphs: [
-      '常見的週期波形，都可以拆成許多頻率不同的正弦波；反過來，把這些正弦波疊加起來，就能組回原本的波形。這就是傅立葉級數的想法。',
-      '粗紫線是合成波，也就是所有勾選的諧波加起來的結果；細線是各個諧波，灰色虛線是理想波形。',
-      '試試看：波形選「方波」，再慢慢增加諧波項數，看紫線是不是愈來愈貼近理想波形。',
-    ],
-  },
-  spectrum: {
-    title: '說明',
-    paragraphs: [
-      '頻譜是用來呈現一個波由哪些頻率的成分組成、各成分有多強的圖。就像把一段聲音拆開，看裡面有哪些音高、各有多大聲。',
-      <>這張圖的橫軸是「第 <MathText tex="n" /> 諧波」，也就是頻率為基頻 <MathText tex="n" /> 倍的正弦波；縱軸是這個諧波的振幅大小。長條愈高，代表這個諧波在合成波中占的份量愈大。</>,
-      '沒有勾選的諧波不會加入合成波，所以不會出現在圖上。',
-      <>振幅為負的諧波，代表它的波形上下顛倒。頻譜只看振幅的大小，所以長條仍然朝上畫，例如振幅 <MathText tex="-0.25" /> 和 <MathText tex="+0.25" /> 的長條一樣高。</>,
-    ],
-  },
-  rms: {
-    title: '說明',
-    paragraphs: [
-      'RMS 是 Root Mean Square 的縮寫，中文叫「方均根」。RMS 誤差用一個數字表示合成波和理想波形平均差多少，數值愈小，兩條線愈接近。',
-      <>在圖上取 <MathText tex={`M = ${SAMPLE_COUNT}`} /> 個等間距的位置 <MathText tex="x_1, x_2, \ldots, x_M" />，其中 <MathText tex="x_1 = -k\pi" /> 是圖的最左端，<MathText tex="x_M = k\pi" /> 是最右端，<MathText tex="k" /> 為顯示週期。<MathText tex="s(x_i)" /> 與 <MathText tex="g(x_i)" /> 分別是第 <MathText tex="i" /> 個位置上合成波與理想波形的值，則 RMS 誤差 <MathText tex="E_{\mathrm{RMS}}" /> 定義為：</>,
-      <MathText tex="E_{\mathrm{RMS}} = \sqrt{\frac{1}{M}\sum_{i=1}^{M} \left[ s(x_i) - g(x_i) \right]^{2}}" display />,
-      <>自訂波形沒有理想波形，上式中的 <MathText tex="g(x_i)" /> 不存在，因此 RMS 誤差無法定義。</>,
-    ],
-  },
+const HELP_CONTENT: Record<HelpTopic, ReactNode[]> = {
+  sound: [
+    <>開啟聲音後，會播放畫面上的合成波。合成波每秒重複 <MathText tex="f_1" /> 次，第 <MathText tex="n" /> 諧波的頻率是 <MathText tex="n f_1" />，振幅和正負號都和滑桿相同。頻率超過 {MAX_AUDIBLE_FREQUENCY} Hz 的諧波人耳聽不到，所以不播放。</>,
+    `選擇播放「理想波形」時，會加入頻率在 ${MAX_AUDIBLE_FREQUENCY} Hz 以內的所有諧波，聽起來就是理想波形，可以和合成波比較。自訂波形沒有理想波形，只能播放合成波。`,
+    '同一個波形，振幅愈大，聲音愈大；不同形狀的波，就算最高點一樣高，聽起來也不一定一樣大聲。音量滑桿的刻度依照耳朵的感覺設計：滑桿每移動相同的距離，聲音大約放大或縮小相同的倍率。振幅大到會破音時，音量滑桿會自動調低，最高只能調到不會破音的位置。',
+  ],
+  harmonics: [
+    '振幅係數決定每個諧波的大小，數值的絕對值愈大，這個諧波在合成波中占的份量愈大。',
+    '振幅係數可以是負的，代表這個諧波的波形上下顛倒，也就是相位差半個週期。有些波形一定要用負值才合成得出來，例如三角波的第 3、7 諧波。',
+  ],
+  wave: [
+    '常見的週期波形，都可以拆成許多頻率不同的正弦波；反過來，把這些正弦波疊加起來，就能組回原本的波形。這就是傅立葉級數的想法。',
+    '粗紫線是合成波，也就是所有勾選的諧波加起來的結果；細線是各個諧波，灰色虛線是理想波形。',
+    '試試看：波形選「方波」，再慢慢增加諧波項數，看紫線是不是愈來愈貼近理想波形。',
+  ],
+  spectrum: [
+    '頻譜是用來呈現一個波由哪些頻率的成分組成、各成分有多強的圖。就像把一段聲音拆開，看裡面有哪些音高、各有多大聲。',
+    <>這張圖的橫軸是「第 <MathText tex="n" /> 諧波」，也就是頻率為基頻 <MathText tex="n" /> 倍的正弦波；縱軸是這個諧波的振幅大小。長條愈高，代表這個諧波在合成波中占的份量愈大。</>,
+    '沒有勾選的諧波不會加入合成波，所以不會出現在圖上。',
+    <>振幅為負的諧波，代表它的波形上下顛倒。頻譜只看振幅的大小，所以長條仍然朝上畫，例如振幅 <MathText tex="-0.25" /> 和 <MathText tex="+0.25" /> 的長條一樣高。</>,
+  ],
+  rms: [
+    'RMS 是 Root Mean Square 的縮寫，中文叫「方均根」。RMS 誤差用一個數字表示合成波和理想波形平均差多少，數值愈小，兩條線愈接近。',
+    <>在圖上取 <MathText tex={`M = ${SAMPLE_COUNT}`} /> 個等間距的位置 <MathText tex="x_1, x_2, \ldots, x_M" />，其中 <MathText tex="x_1 = -k\pi" /> 是圖的最左端，<MathText tex="x_M = k\pi" /> 是最右端，<MathText tex="k" /> 為顯示週期。<MathText tex="s(x_i)" /> 與 <MathText tex="g(x_i)" /> 分別是第 <MathText tex="i" /> 個位置上合成波與理想波形的值，則 RMS 誤差 <MathText tex="E_{\mathrm{RMS}}" /> 定義為：</>,
+    <MathText tex="E_{\mathrm{RMS}} = \sqrt{\frac{1}{M}\sum_{i=1}^{M} \left[ s(x_i) - g(x_i) \right]^{2}}" display />,
+    <>自訂波形沒有理想波形，上式中的 <MathText tex="g(x_i)" /> 不存在，因此 RMS 誤差無法定義。</>,
+  ],
 }
 
 function initialCoefficient(type: WaveType, n: number) {
@@ -91,10 +77,6 @@ function targetWave(type: WaveType, x: number) {
   if (type === 'saw') return angle / Math.PI
   if (type === 'pulse') return Math.abs(angle) < Math.PI / 4 ? 1 : -1 / 3
   return 0
-}
-
-function clampToRange(value: string, max: number, min = 1) {
-  return Math.max(min, Math.min(max, Math.floor(Number(value)) || min))
 }
 
 function piMultipleTex(multiple: number) {
@@ -155,9 +137,7 @@ function FourierWaveLab() {
 
   const [wave, setWave] = useState<WaveType>('custom')
   const [terms, setTerms] = useState(DEFAULT_TERMS)
-  const [termDraft, setTermDraft] = useState<string | null>(null)
   const [periods, setPeriods] = useState(3)
-  const [periodDraft, setPeriodDraft] = useState<string | null>(null)
   const panelRef = useRef<HTMLElement>(null)
   const [coefficients, setCoefficients] = useState(() => Array.from({ length: MAX_TERMS }, (_, i) => initialCoefficient('custom', i + 1)))
   const [enabled, setEnabled] = useState(() => Array(MAX_TERMS).fill(true) as boolean[])
@@ -168,7 +148,6 @@ function FourierWaveLab() {
   const [soundOn, setSoundOn] = useState(false)
   const [soundSource, setSoundSource] = useState<SoundSource>('sum')
   const [fundamental, setFundamental] = useState(DEFAULT_FUNDAMENTAL)
-  const [fundamentalDraft, setFundamentalDraft] = useState<string | null>(null)
   const [volume, setVolume] = useState(DEFAULT_VOLUME)
   const [player] = useState(() => new FourierSoundPlayer())
 
@@ -206,19 +185,6 @@ function FourierWaveLab() {
     // Audio has to start inside the click itself.
     if (on) player.start()
     setSoundOn(on)
-  }
-
-  // Most partly typed numbers are below 100 Hz, so only values already in range play at once;
-  // anything else is clamped when typing ends, instead of the tone dropping to 100 Hz per keystroke.
-  const changeFundamentalDraft = (value: string) => {
-    setFundamentalDraft(value)
-    const next = Number(value)
-    if (value !== '' && Number.isInteger(next) && next >= MIN_FUNDAMENTAL && next <= MAX_FUNDAMENTAL) setFundamental(next)
-  }
-
-  const commitFundamentalDraft = () => {
-    if (fundamentalDraft) setFundamental(clampToRange(fundamentalDraft, MAX_FUNDAMENTAL, MIN_FUNDAMENTAL))
-    setFundamentalDraft(null)
   }
 
   const data = useMemo(() => {
@@ -263,16 +229,6 @@ function FourierWaveLab() {
     fitPanelToWindow(panel, layout)
   }, [soundOn, wave])
 
-  const changeTermDraft = (value: string) => {
-    setTermDraft(value)
-    if (value !== '') setTerms(clampToRange(value, MAX_TERMS))
-  }
-
-  const changePeriodDraft = (value: string) => {
-    setPeriodDraft(value)
-    if (value !== '') setPeriods(clampToRange(value, MAX_PERIODS))
-  }
-
   const changeWave = (next: WaveType) => {
     setWave(next)
     setCoefficients(Array.from({ length: MAX_TERMS }, (_, i) => initialCoefficient(next, i + 1)))
@@ -310,21 +266,21 @@ function FourierWaveLab() {
         <span>Spovark</span>
       </header>
       <main className="lab-main">
-        <h1>諧波疊加</h1>
+        <h1>波的疊加</h1>
         <p className="lab-intro">任何週期波形，都可以由不同頻率的諧波疊加而成。調整各諧波的振幅，親手疊出想要的波形。</p>
         <div className="lab-layout">
           <aside className="lab-panel" ref={panelRef}>
             <h2>基本設定</h2>
             <div className="lab-control"><label htmlFor="wave-type">波形</label><select id="wave-type" value={wave} onChange={(event) => changeWave(event.target.value as WaveType)}><option value="custom">自訂波形</option><option value="square">方波</option><option value="triangle">三角波</option><option value="saw">鋸齒波</option><option value="pulse">脈衝波</option></select></div>
-            <div className="lab-control"><div className="lab-control-head"><label htmlFor="term-count">諧波項數 <MathText tex="N" /></label><input className="lab-number-input" aria-label="輸入諧波項數" type="number" min="1" max={MAX_TERMS} step="1" value={termDraft ?? terms} onChange={(event) => changeTermDraft(event.target.value)} onBlur={() => setTermDraft(null)} /></div><input id="term-count" type="range" min="1" max={MAX_TERMS} value={terms} onChange={(event) => setTerms(Number(event.target.value))} /></div>
-            <div className="lab-control"><div className="lab-control-head"><label htmlFor="period-count">顯示週期</label><input className="lab-number-input" aria-label="輸入顯示週期" type="number" min="1" max={MAX_PERIODS} step="1" value={periodDraft ?? periods} onChange={(event) => changePeriodDraft(event.target.value)} onBlur={() => setPeriodDraft(null)} /></div><input id="period-count" type="range" min="1" max={MAX_PERIODS} value={periods} onChange={(event) => setPeriods(Number(event.target.value))} /></div>
+            <Slider label={<>諧波項數 <MathText tex="N" /></>} min={1} max={MAX_TERMS} step={1} digits={0} integer inputLabel="輸入諧波項數" inputClassName="" value={terms} onChange={setTerms} />
+            <Slider label="顯示週期" min={1} max={MAX_PERIODS} step={1} digits={0} integer inputLabel="輸入顯示週期" inputClassName="" value={periods} onChange={setPeriods} />
             <button className="lab-secondary" onClick={reset}>重設</button>
             <p className="lab-note">試著增加諧波項數，觀察合成波形如何逐漸接近理想波形。你也可以調整每一項諧波的振幅。</p>
             <section className="fourier-sound">
               <div className="fourier-sound-head"><h2>聲音<button className="lab-help-button lab-help-small" onClick={() => setHelpTopic('sound')} aria-label="開啟聲音說明">?</button></h2><input className="fourier-switch" type="checkbox" role="switch" aria-label="聲音" checked={soundOn} onChange={(event) => toggleSound(event.target.checked)} /></div>
               {soundOn && <div className="fourier-sound-body">
                 <div className="lab-control"><div className="lab-control-head" id="sound-source-label">播放</div><div className="fourier-source" role="group" aria-labelledby="sound-source-label"><button type="button" aria-pressed={!playTarget} onClick={() => setSoundSource('sum')}>合成波</button><button type="button" aria-pressed={playTarget} disabled={wave === 'custom'} title={wave === 'custom' ? '自訂波形沒有理想波形' : undefined} onClick={() => setSoundSource('target')}>理想波形</button></div></div>
-                <div className="lab-control"><div className="lab-control-head"><label htmlFor="fundamental">基頻 <MathText tex="f_1" /></label><span className="fourier-unit-input"><input className="lab-number-input fourier-frequency-input" aria-label="輸入基頻" type="number" min={MIN_FUNDAMENTAL} max={MAX_FUNDAMENTAL} step="1" value={fundamentalDraft ?? fundamental} onChange={(event) => changeFundamentalDraft(event.target.value)} onBlur={commitFundamentalDraft} onKeyDown={(event) => { if (event.key === 'Enter') commitFundamentalDraft() }} />Hz</span></div><input id="fundamental" type="range" min={MIN_FUNDAMENTAL} max={MAX_FUNDAMENTAL} step="1" value={fundamental} onChange={(event) => setFundamental(Number(event.target.value))} /></div>
+                <Slider label={<>基頻 <MathText tex="f_1" /></>} min={MIN_FUNDAMENTAL} max={MAX_FUNDAMENTAL} step={1} digits={0} integer unit="Hz" inputLabel="輸入基頻" inputClassName="fourier-frequency-input" value={fundamental} onChange={setFundamental} />
                 <div className="lab-control"><div className="lab-control-head"><label htmlFor="sound-volume">音量</label><span>{volume}%</span></div><input id="sound-volume" type="range" min="0" max="100" step="1" value={volume} onChange={(event) => setVolume(Math.min(Number(event.target.value), volumeCap))} />{/* A hidden copy keeps the notice's room, so the panel below does not jump while a slider is dragged. */}<p className="fourier-sound-limit"><span aria-hidden="true">{volumeCapNotice(99)}</span><span role="status">{atVolumeCap ? volumeCapNotice(volumeCap) : ''}</span></p></div>
               </div>}
             </section>
@@ -345,7 +301,7 @@ function FourierWaveLab() {
           </section>
         </div>
       </main>
-      {helpTopic && <div className="lab-overlay" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) setHelpTopic(null) }}><section className="lab-dialog" role="dialog" aria-modal="true" aria-labelledby="fourier-help-title"><h2 id="fourier-help-title">{HELP_CONTENT[helpTopic].title}</h2>{HELP_CONTENT[helpTopic].paragraphs.map((paragraph, index) => <p key={index}>{paragraph}</p>)}<button className="lab-secondary" onClick={() => setHelpTopic(null)}>關閉</button></section></div>}
+      {helpTopic && <HelpDialog paragraphs={HELP_CONTENT[helpTopic]} onClose={() => setHelpTopic(null)} />}
     </div>
   )
 }

@@ -6,6 +6,8 @@ export const RAMP_RADIUS = 4.3
 export const RAMP_TOP = 4.1
 export const EXIT_LENGTH = 3
 export const TIME_LIMIT = 60
+// The floor to the left of the half-circle track, where a ball thrown from the top lands.
+export const FLOOR_LENGTH = 4.4
 
 const LOOP_LENGTH = 2 * Math.PI * TRACK_RADIUS
 const STEPS_PER_RADIUS = 160
@@ -21,10 +23,10 @@ const FORCE_TOLERANCE = 5e-4
 const POSITION_TOLERANCE = 1e-6
 
 export type Link = 'rope' | 'rod'
-export type TrackKind = 'inside' | 'tube' | 'outside'
+export type TrackKind = 'inside' | 'tube' | 'outside' | 'half'
 export type TrackStart = 'height' | 'bottom'
-// swing and loop repeat forever; the others end the run.
-export type Outcome = 'swing' | 'loop' | 'leave' | 'exit' | 'rest' | 'limit'
+// swing and loop repeat forever; the others end the run. launch is a ball thrown off the end of the track.
+export type Outcome = 'swing' | 'loop' | 'leave' | 'launch' | 'exit' | 'rest' | 'limit'
 // Which way the rope, rod or track can act on the ball, relative to the centre of the circle.
 type Allows = 'toward' | 'away' | 'both'
 
@@ -46,6 +48,13 @@ export type MotionFrame = {
   force: number
   normalX: number
   normalY: number
+  // Unit vector toward the centre of curvature of the path, and that curvature in 1/m; all zero in flight.
+  inwardX: number
+  inwardY: number
+  curvature: number
+  // The resistance acting on the ball, including the static value that holds it in place once it has stopped.
+  resistanceX: number
+  resistanceY: number
   // Angular position on the circle in the chart's convention; null off the circle.
   angle: number | null
   attached: boolean
@@ -94,11 +103,15 @@ type Scenario = {
   step: number
   // Circumference of a closed path, or null for an open one.
   wrap: number | null
+  // The ends of an open path. Reaching `end` throws the ball off the track when `launchAtEnd` is set.
   end: number | null
+  begin: number | null
+  launchAtEnd: boolean
   // Path positions of the top of the circle, for counting passes over it.
   tops: { first: number; spacing: number } | null
-  // Where free flight ends: back on the circle of this radius around (0, radius), or on the ground y = 0.
-  landing: { kind: 'circle'; radius: number } | { kind: 'ground' }
+  // Where free flight ends: back on the circle of this radius around (0, radius), on the ground y = 0,
+  // or whichever comes first of the ground and the right half of that circle.
+  landing: { kind: 'circle'; radius: number } | { kind: 'ground' } | { kind: 'groundOrArc'; radius: number }
   // How far the would-be force curve continues after leaving, measured along the path.
   continuationLimit: (position: number) => number
 }
@@ -216,6 +229,10 @@ function buildLeg(scenario: Scenario, start: number, direction: 1 | -1, energy: 
       next = scenario.end
       stop = 'end'
     }
+    if (scenario.begin !== null && direction < 0 && next <= scenario.begin) {
+      next = scenario.begin
+      stop = 'end'
+    }
     if (cycleTarget !== null && position < cycleTarget && next >= cycleTarget) {
       next = cycleTarget
       stop = 'cycle'
@@ -283,9 +300,13 @@ function lerpState(a: FlightState, b: FlightState, fraction: number): FlightStat
 // Free flight under gravity and the resistance until the ball is back on the circle or on the ground.
 function fly(scenario: Scenario, initial: FlightState, t0: number): Flight {
   const landing = scenario.landing
-  const gap = (state: FlightState) => landing.kind === 'ground'
-    ? state.y
-    : landing.radius ** 2 - state.x ** 2 - (state.y - landing.radius) ** 2
+  // Positive while the ball is still in the air.
+  const gap = (state: FlightState) => {
+    if (landing.kind === 'ground') return state.y
+    const inside = landing.radius ** 2 - state.x ** 2 - (state.y - landing.radius) ** 2
+    if (landing.kind === 'circle') return inside
+    return state.x > 0 ? Math.min(state.y, inside) : state.y
+  }
   const tolerance = landing.kind === 'ground' ? 0 : 1e-9 * landing.radius ** 2
   const states = [initial]
   let armed = landing.kind === 'ground'
@@ -317,12 +338,14 @@ function flightStateAt(flight: Flight, local: number) {
   return lerpState(states[index], states[index + 1], clamp((local - index * FLIGHT_STEP) / stepLength, 0, 1))
 }
 
-function legFrame(scenario: Scenario, leg: Leg, local: number): MotionFrame {
+// `resting` marks a ball the resistance holds still: it then exactly balances gravity along the path.
+function legFrame(scenario: Scenario, leg: Leg, local: number, resting: boolean): MotionFrame {
   const position = legPosition(leg, local)
   const point = scenario.geometry(position)
-  const speedSquared = Math.max(0, speedSquaredOnLeg(scenario, leg.start, leg.energy, position))
+  const speedSquared = resting ? 0 : Math.max(0, speedSquaredOnLeg(scenario, leg.start, leg.energy, position))
   const speed = Math.sqrt(speedSquared)
   const { mass, forceSign } = scenario
+  const resistance = resting ? mass * GRAVITY * point.ty : -leg.direction * scenario.resistance
   return {
     x: point.x,
     y: point.y,
@@ -335,6 +358,11 @@ function legFrame(scenario: Scenario, leg: Leg, local: number): MotionFrame {
     force: forceSign * inwardForce(scenario, point, speedSquared),
     normalX: forceSign * point.nx,
     normalY: forceSign * point.ny,
+    inwardX: point.nx,
+    inwardY: point.ny,
+    curvature: point.curvature,
+    resistanceX: resistance * point.tx,
+    resistanceY: resistance * point.ty,
     angle: scenario.angleOf(position),
     attached: true,
   }
@@ -343,6 +371,7 @@ function legFrame(scenario: Scenario, leg: Leg, local: number): MotionFrame {
 function flightFrame(scenario: Scenario, flight: Flight, local: number): MotionFrame {
   const state = flightStateAt(flight, local)
   const speed = Math.hypot(state.vx, state.vy)
+  const drag = speed > 0 ? scenario.resistance / speed : 0
   return {
     x: state.x,
     y: state.y,
@@ -355,6 +384,11 @@ function flightFrame(scenario: Scenario, flight: Flight, local: number): MotionF
     force: 0,
     normalX: 0,
     normalY: 0,
+    inwardX: 0,
+    inwardY: 0,
+    curvature: 0,
+    resistanceX: -drag * state.vx,
+    resistanceY: -drag * state.vy,
     angle: null,
     attached: false,
   }
@@ -458,6 +492,16 @@ function simulate(scenario: Scenario): MotionRun {
       periodic = true
       break
     }
+    if (end === 'end' && scenario.launchAtEnd && direction > 0) {
+      const point = scenario.geometry(finish)
+      const speed = Math.sqrt(Math.max(0, speedSquaredOnLeg(scenario, leg.start, leg.energy, finish)))
+      leaveTime = time
+      const flight = fly(scenario, { x: point.x, y: point.y, vx: speed * point.tx, vy: speed * point.ty, lost }, time)
+      segments.push(flight)
+      time += flight.duration
+      outcome = 'launch'
+      break
+    }
     if (end === 'end') {
       outcome = 'exit'
       break
@@ -502,7 +546,8 @@ function simulate(scenario: Scenario): MotionRun {
         break
       }
     }
-    return segment.kind === 'leg' ? legFrame(scenario, segment, local - segment.t0) : flightFrame(scenario, segment, local - segment.t0)
+    const resting = outcome === 'rest' && (legs.length === 0 || local >= duration)
+    return segment.kind === 'leg' ? legFrame(scenario, segment, local - segment.t0, resting) : flightFrame(scenario, segment, local - segment.t0)
   }
 
   return {
@@ -537,6 +582,8 @@ function circleScenario(radius: number, mass: number, speed: number, resistance:
     step: radius / STEPS_PER_RADIUS,
     wrap,
     end: null,
+    begin: null,
+    launchAtEnd: false,
     tops: { first: Math.PI * radius, spacing: wrap },
     landing: { kind: 'circle', radius },
     continuationLimit: (position) => Math.max(0, Math.PI * radius - Math.abs(wrapAngle(position / radius)) * radius),
@@ -561,9 +608,35 @@ export function solveTrack({ kind, start, height, speed, mass, resistance }: Tra
       step: TRACK_RADIUS / STEPS_PER_RADIUS,
       wrap: null,
       end: (Math.PI / 2) * TRACK_RADIUS,
+      begin: null,
+      launchAtEnd: false,
       tops: null,
       landing: { kind: 'ground' },
       continuationLimit: (position) => Math.max(0, (Math.PI / 2) * TRACK_RADIUS - position),
+    })
+  }
+  if (kind === 'half') {
+    // A floor for s < 0 leads into the right half of the circle, which ends at the top.
+    const halfLength = Math.PI * TRACK_RADIUS
+    return simulate({
+      mass,
+      resistance,
+      allows: 'toward',
+      forceSign: 1,
+      geometry: (position) => (position < 0
+        ? { x: position, y: 0, tx: 1, ty: 0, nx: 0, ny: 1, curvature: 0 }
+        : circlePoint(TRACK_RADIUS, position / TRACK_RADIUS)),
+      angleOf: (position) => (position >= 0 ? position / TRACK_RADIUS : null),
+      start: 0,
+      speed,
+      step: TRACK_RADIUS / STEPS_PER_RADIUS,
+      wrap: null,
+      end: halfLength,
+      begin: -FLOOR_LENGTH,
+      launchAtEnd: true,
+      tops: { first: halfLength, spacing: Infinity },
+      landing: { kind: 'groundOrArc', radius: TRACK_RADIUS },
+      continuationLimit: (position) => Math.max(0, halfLength - position),
     })
   }
   const allows: Allows = kind === 'tube' ? 'both' : 'toward'
@@ -580,6 +653,8 @@ export function solveTrack({ kind, start, height, speed, mass, resistance }: Tra
     step: TRACK_RADIUS / STEPS_PER_RADIUS,
     wrap: null,
     end: LOOP_LENGTH + EXIT_LENGTH,
+    begin: null,
+    launchAtEnd: false,
     tops: { first: Math.PI * TRACK_RADIUS, spacing: Infinity },
     landing: { kind: 'circle', radius: TRACK_RADIUS },
     continuationLimit: (position) => Math.max(0, Math.PI * TRACK_RADIUS - position),

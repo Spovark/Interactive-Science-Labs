@@ -1,15 +1,14 @@
-import { useId, useMemo, useState, type ReactNode } from 'react'
+import { useId, useMemo, type ReactNode } from 'react'
+import { clamp, formatTick, formatValue, linearScale, niceTicks, tracePath } from './chartUtils'
+import { useElementWidth } from './labHooks'
+import { ChartFrame, Legend, LegendItem, NumberField, Slider, Sym, TimeChart, type ChartMargin, type TimeSeries } from './LabShared'
 import MathText from './MathText'
-import { clamp, formatTick, formatValue, linearScale, niceTicks, tracePath } from './momentumChartUtils'
-import { horizontalDrag, useElementWidth } from './momentumHooks'
-import { GRAVITY, TIME_LIMIT, type MotionFrame, type MotionRun } from './verticalCirclePhysics'
+import { TIME_LIMIT, type MotionFrame, type MotionRun } from './verticalCirclePhysics'
 import type { SceneKind, ThresholdRow } from './verticalCircleText'
 
-export type CircleHelpTopic = 'ropeStage' | 'trackHeight' | 'trackBottom' | 'trackOutside' | 'energy' | 'resistance' | 'ropeForce' | 'trackForce' | 'outsideForce'
+export type CircleHelpTopic = 'ropeStage' | 'trackHeight' | 'trackBottom' | 'trackOutside' | 'trackHalf' | 'observer' | 'vectors' | 'energy' | 'resistance' | 'ropeForce' | 'trackForce' | 'outsideForce'
 export type OpenHelp = (topic: CircleHelpTopic) => void
 export type SpeedUnit = 'si' | 'ratio'
-type ChartMargin = { left: number; right: number; top: number; bottom: number }
-type Series = { key: string; color: string; width: number; dash?: string; points: [number, number][] }
 
 export const COLOR_KINETIC = 'var(--circle-kinetic)'
 export const COLOR_POTENTIAL = 'var(--circle-potential)'
@@ -22,10 +21,8 @@ export const COLOR_BALL = 'var(--circle-ball)'
 export const DEFAULT_PLAYBACK_RATE = 0.5
 
 const RESISTANCE_RANGE = { min: 0, max: 3, step: 0.1 }
-const PLAYBACK_RATES = [0.25, 0.5, 1]
 const DEGREES = 180 / Math.PI
 const ENERGY_CHART_HEIGHT = 200
-const ENERGY_CHART_MARGIN: ChartMargin = { left: 48, right: 12, top: 10, bottom: 40 }
 const ENERGY_SAMPLES_PER_SECOND = 80
 const ENERGY_SAMPLES_MIN = 360
 const ENERGY_SAMPLES_MAX = 3000
@@ -36,79 +33,6 @@ const TRAIL_SAMPLES = 40
 const ANGLE_AXES = {
   bottom: { domain: [-180, 180], ticks: [-180, -90, 0, 90, 180], names: new Map([[0, '最低點'], [180, '最高點'], [-180, '最高點']]) },
   top: { domain: [0, 90], ticks: [0, 30, 60, 90], names: new Map([[0, '最高點'], [90, '與圓心同高']]) },
-}
-
-export function Sym({ children }: { children: string }) {
-  return <tspan fontFamily="KaTeX_Math" fontStyle="italic" fontSize="13">{children}</tspan>
-}
-
-type NumberFieldProps = {
-  value: number
-  min: number
-  max: number
-  step: number
-  digits: number
-  label: string
-  onChange: (value: number) => void
-}
-
-// Typing updates the value as soon as it is a number in range; leaving the field clamps whatever is left.
-export function NumberField({ value, min, max, step, digits, label, onChange }: NumberFieldProps) {
-  const [draft, setDraft] = useState<string | null>(null)
-  const isNumber = (text: string) => text.trim() !== '' && Number.isFinite(Number(text))
-  const change = (text: string) => {
-    setDraft(text)
-    const next = Number(text)
-    if (isNumber(text) && next >= min && next <= max) onChange(next)
-  }
-  const commit = () => {
-    if (draft !== null && isNumber(draft)) onChange(clamp(Number(draft), min, max))
-    setDraft(null)
-  }
-  return (
-    <input
-      className="lab-number-input circle-number-input"
-      type="number"
-      aria-label={label}
-      min={Number(min.toFixed(digits))}
-      max={Number(max.toFixed(digits))}
-      step={step}
-      value={draft ?? Number(value.toFixed(digits))}
-      onChange={(event) => change(event.target.value)}
-      onBlur={commit}
-      onKeyDown={(event) => { if (event.key === 'Enter') commit() }}
-    />
-  )
-}
-
-type SliderProps = {
-  label: ReactNode
-  value: number
-  min: number
-  max: number
-  step: number
-  unit?: string
-  digits?: number
-  // Shown right after the label, for example a help button.
-  extra?: ReactNode
-  // Replaces the read-only value with a number field labelled for screen readers.
-  inputLabel?: string
-  onChange: (value: number) => void
-}
-
-export function Slider({ label, value, min, max, step, unit, digits = 1, extra, inputLabel, onChange }: SliderProps) {
-  const id = useId()
-  return (
-    <div className="lab-control">
-      <div className="lab-control-head">
-        <span className="circle-label-group"><label htmlFor={id}>{label}</label>{extra}</span>
-        {inputLabel
-          ? <span className="circle-unit-input"><NumberField value={value} min={min} max={max} step={step} digits={digits} label={inputLabel} onChange={onChange} />{unit}</span>
-          : <span className="circle-slider-value">{formatValue(value, digits)}{unit ? ` ${unit}` : ''}</span>}
-      </div>
-      <input id={id} type="range" min={min} max={max} step={step} value={value} onChange={(event) => onChange(Number(event.target.value))} />
-    </div>
-  )
 }
 
 type SpeedControlProps = {
@@ -134,7 +58,7 @@ export function SpeedControl({ label, speed, unitSpeed, min, max, step, unit, on
     <div className="lab-control">
       <div className="lab-control-head">
         <label htmlFor={id}>{label}</label>
-        <span className="circle-unit-input">
+        <span className="lab-unit-input">
           <NumberField key={unit} value={speed / scale} min={min / scale} max={max / scale} step={inRatio ? 0.01 : step} digits={inRatio ? 3 : 2} label="輸入速率" onChange={(value) => onChange(value * scale)} />
           {inRatio ? <MathText tex="\sqrt{gR}" /> : 'm/s'}
         </span>
@@ -149,28 +73,6 @@ export function SpeedControl({ label, speed, unitSpeed, min, max, step, unit, on
       </div>
     </div>
   )
-}
-
-type SegmentedProps<T extends string | number> = {
-  label: string
-  options: { value: T; label: string }[]
-  value: T
-  onChange: (value: T) => void
-}
-
-export function Segmented<T extends string | number>({ label, options, value, onChange }: SegmentedProps<T>) {
-  return (
-    <div className="lab-control">
-      <span className="circle-field-label">{label}</span>
-      <div className="circle-segmented" role="group" aria-label={label} style={{ gridTemplateColumns: `repeat(${options.length}, 1fr)` }}>
-        {options.map((option) => <button key={option.value} aria-pressed={option.value === value} onClick={() => onChange(option.value)}>{option.label}</button>)}
-      </div>
-    </div>
-  )
-}
-
-export function PlaybackRate({ value, onChange }: { value: number; onChange: (value: number) => void }) {
-  return <Segmented label="播放速度" options={PLAYBACK_RATES.map((rate) => ({ value: rate, label: `${rate} 倍` }))} value={value} onChange={onChange} />
 }
 
 export function ResistanceSlider({ value, onChange, onHelp }: { value: number; onChange: (value: number) => void; onHelp: OpenHelp }) {
@@ -189,7 +91,7 @@ export function ResistanceSlider({ value, onChange, onHelp }: { value: number; o
 export function MotionThresholds({ title, rows, active }: { title: ReactNode; rows: ThresholdRow[]; active: string | null }) {
   return (
     <div className="lab-control">
-      <span className="circle-field-label">{title}</span>
+      <span className="lab-field-label">{title}</span>
       <table className="circle-thresholds">
         <tbody>
           {rows.map((row) => (
@@ -201,101 +103,6 @@ export function MotionThresholds({ title, rows, active }: { title: ReactNode; ro
         </tbody>
       </table>
     </div>
-  )
-}
-
-type ChartHeadingProps = {
-  title: string
-  help?: CircleHelpTopic
-  onHelp?: OpenHelp
-  children?: ReactNode
-}
-
-export function ChartHeading({ title, help, onHelp, children }: ChartHeadingProps) {
-  return (
-    <div className="lab-chart-heading">
-      <h2>{title}</h2>
-      <div className="circle-heading-side">
-        {children}
-        {help && onHelp && <button className="lab-help-button" onClick={() => onHelp(help)} aria-label={`開啟${title}說明`}>?</button>}
-      </div>
-    </div>
-  )
-}
-
-export function Legend({ children }: { children: ReactNode }) {
-  return <div className="circle-legend">{children}</div>
-}
-
-type LegendItemProps = {
-  color: string
-  kind?: 'line' | 'block' | 'dashed' | 'dot'
-  children: ReactNode
-}
-
-export function LegendItem({ color, kind = 'block', children }: LegendItemProps) {
-  return <span className="circle-legend-item"><i className={`circle-key is-${kind}`} style={{ color }} />{children}</span>
-}
-
-type VectorArrowProps = {
-  x: number
-  y: number
-  dx: number
-  dy: number
-  color: string
-  width?: number
-  label?: ReactNode
-  // Moves the label sideways (in pixels, to the left of the arrow's direction when positive).
-  labelShift?: number
-  // Starts the arrow this many pixels from (x, y), for example at the edge of the ball.
-  gap?: number
-}
-
-export function VectorArrow({ x, y, dx, dy, color, width = 2.5, label, labelShift = 0, gap = 0 }: VectorArrowProps) {
-  const length = Math.hypot(dx, dy)
-  if (length < 3) return null
-  const ux = dx / length
-  const uy = dy / length
-  const head = Math.min(length, 6 + width * 1.6)
-  const halfHead = 2.5 + width * 0.8
-  const tailX = x + ux * gap
-  const tailY = y + uy * gap
-  const tipX = tailX + dx
-  const tipY = tailY + dy
-  const neckX = tipX - ux * head
-  const neckY = tipY - uy * head
-  return (
-    <g>
-      {length > head && <line x1={tailX} y1={tailY} x2={neckX} y2={neckY} stroke={color} strokeWidth={width} />}
-      <path d={`M${tipX} ${tipY}L${neckX - uy * halfHead} ${neckY + ux * halfHead}L${neckX + uy * halfHead} ${neckY - ux * halfHead}Z`} fill={color} />
-      {label && <text x={tipX + ux * 11 + uy * labelShift} y={tipY + uy * 11 - ux * labelShift + 4} textAnchor="middle" fontSize="12" fill={color}>{label}</text>}
-    </g>
-  )
-}
-
-type BallArrowsProps = {
-  frame: MotionFrame
-  x: number
-  y: number
-  ballRadius: number
-  mass: number
-  resistance: number
-  forceScale: number
-  velocityScale: number
-  forceSymbol: string
-}
-
-// Velocity, the rope or track force, the weight and the resistance, all starting at the edge of the ball.
-export function BallArrows({ frame, x, y, ballRadius, mass, resistance, forceScale, velocityScale, forceSymbol }: BallArrowsProps) {
-  const weight = mass * GRAVITY
-  const moving = frame.speed > 1e-6
-  return (
-    <g>
-      {frame.attached && <VectorArrow x={x} y={y} dx={frame.normalX * frame.force * forceScale} dy={-frame.normalY * frame.force * forceScale} color={COLOR_FORCE} label={<Sym>{forceSymbol}</Sym>} labelShift={-10} gap={ballRadius} />}
-      <VectorArrow x={x + 6} y={y} dx={0} dy={weight * forceScale} color={COLOR_WEIGHT} label={<Sym>mg</Sym>} labelShift={10} gap={ballRadius} />
-      {resistance > 0 && moving && <VectorArrow x={x} y={y} dx={(-frame.vx / frame.speed) * resistance * forceScale} dy={(frame.vy / frame.speed) * resistance * forceScale} color={COLOR_RESISTANCE} label={<Sym>f</Sym>} labelShift={-10} gap={ballRadius} />}
-      <VectorArrow x={x} y={y} dx={frame.vx * velocityScale} dy={-frame.vy * velocityScale} color="var(--lab-text)" width={2} label={<Sym>v</Sym>} gap={ballRadius} />
-    </g>
   )
 }
 
@@ -337,42 +144,6 @@ export function EnergyReadout({ frame, run }: { frame: MotionFrame; run: MotionR
   )
 }
 
-type AxesProps = {
-  width: number
-  height: number
-  margin: ChartMargin
-  xFor: (value: number) => number
-  yFor: (value: number) => number
-  xTicks: number[]
-  yTicks: number[]
-  xLabel: ReactNode
-  yLabel: ReactNode
-  xTickLabel?: (tick: number, x: number) => ReactNode
-}
-
-function Axes({ width, height, margin, xFor, yFor, xTicks, yTicks, xLabel, yLabel, xTickLabel = (tick) => formatTick(tick) }: AxesProps) {
-  const bottom = height - margin.bottom
-  const right = width - margin.right
-  return (
-    <g>
-      {xTicks.map((tick) => (
-        <g key={tick}>
-          <line x1={xFor(tick)} x2={xFor(tick)} y1={margin.top} y2={bottom} stroke={tick === 0 ? 'var(--lab-axis)' : 'var(--lab-grid)'} />
-          <text x={xFor(tick)} y={bottom + 15} textAnchor="middle" fontSize="11" fill="var(--lab-muted)">{xTickLabel(tick, xFor(tick))}</text>
-        </g>
-      ))}
-      {yTicks.map((tick) => (
-        <g key={tick}>
-          <line x1={margin.left} x2={right} y1={yFor(tick)} y2={yFor(tick)} stroke={tick === 0 ? 'var(--lab-axis)' : 'var(--lab-grid)'} />
-          <text x={margin.left - 6} y={yFor(tick) + 4} textAnchor="end" fontSize="11" fill="var(--lab-muted)">{formatTick(tick)}</text>
-        </g>
-      ))}
-      <text x={(margin.left + right) / 2} y={height - 6} textAnchor="middle" fontSize="11.5" fill="var(--lab-muted)">{xLabel}</text>
-      <text transform={`translate(13 ${(margin.top + bottom) / 2}) rotate(-90)`} textAnchor="middle" fontSize="11.5" fill="var(--lab-muted)">{yLabel}</text>
-    </g>
-  )
-}
-
 function paddedDomain(values: number[]): [number, number] {
   const low = Math.min(0, ...values) * VALUE_PADDING
   const high = Math.max(0, ...values) * VALUE_PADDING
@@ -386,18 +157,13 @@ type EnergyChartProps = {
 }
 
 export function EnergyChart({ run, time, onSeek }: EnergyChartProps) {
-  const [containerRef, width] = useElementWidth<HTMLDivElement>(340)
-  const margin = ENERGY_CHART_MARGIN
-  const height = ENERGY_CHART_HEIGHT
-  const right = width - margin.right
-  const bottom = height - margin.bottom
-  const series = useMemo<Series[]>(() => {
+  const series = useMemo<TimeSeries[]>(() => {
     const count = Math.round(clamp(run.duration * ENERGY_SAMPLES_PER_SECOND, ENERGY_SAMPLES_MIN, ENERGY_SAMPLES_MAX))
     const frames = Array.from({ length: count + 1 }, (_, index) => {
       const sampleTime = (run.duration * index) / count
       return { time: sampleTime, frame: run.frameAt(sampleTime) }
     })
-    const line = (key: string, color: string, lineWidth: number, value: (frame: MotionFrame) => number): Series => ({
+    const line = (key: string, color: string, lineWidth: number, value: (frame: MotionFrame) => number): TimeSeries => ({
       key, color, width: lineWidth, points: frames.map((sample) => [sample.time, value(sample.frame)]),
     })
     return [
@@ -407,25 +173,25 @@ export function EnergyChart({ run, time, onSeek }: EnergyChartProps) {
     ]
   }, [run])
   const yMax = run.initialEnergy > 0 ? run.initialEnergy * VALUE_PADDING : 1
-  const xFor = linearScale(0, run.duration, margin.left, right)
-  const yFor = linearScale(0, yMax, bottom, margin.top)
-  const timeAt = linearScale(margin.left, right, 0, run.duration)
-
+  const initialLine = (xFor: (value: number) => number, yFor: (value: number) => number) => run.resistance > 0 && (
+    <g>
+      <line x1={xFor(0)} x2={xFor(run.duration)} y1={yFor(run.initialEnergy)} y2={yFor(run.initialEnergy)} stroke={COLOR_RESISTANCE} strokeWidth={1.5} strokeDasharray="5 4" />
+      <text x={xFor(run.duration) - 4} y={yFor(run.initialEnergy) - 5} textAnchor="end" fontSize="11" fill="var(--lab-muted)">初始力學能</text>
+    </g>
+  )
   return (
-    <div ref={containerRef} className="circle-chart-box">
-      <svg width="100%" height={height} role="img" aria-label="動能、重力位能與力學能隨時間的變化">
-        <Axes width={width} height={height} margin={margin} xFor={xFor} yFor={yFor} xTicks={niceTicks(0, run.duration, width < 300 ? 3 : 6)} yTicks={niceTicks(0, yMax, 4)} xLabel={<>時間 <Sym>t</Sym>（s）</>} yLabel="能量（J）" />
-        {run.resistance > 0 && (
-          <g>
-            <line x1={margin.left} x2={right} y1={yFor(run.initialEnergy)} y2={yFor(run.initialEnergy)} stroke={COLOR_RESISTANCE} strokeWidth={1.5} strokeDasharray="5 4" />
-            <text x={right - 4} y={yFor(run.initialEnergy) - 5} textAnchor="end" fontSize="11" fill="var(--lab-muted)">初始力學能</text>
-          </g>
-        )}
-        {series.map((line) => <path key={line.key} d={tracePath(line.points, xFor, yFor)} fill="none" stroke={line.color} strokeWidth={line.width} strokeLinejoin="round" strokeLinecap="round" />)}
-        <line x1={xFor(time)} x2={xFor(time)} y1={margin.top} y2={bottom} stroke="var(--lab-text)" strokeWidth={1.5} />
-        <rect className="circle-drag" x={margin.left} y={margin.top} width={Math.max(0, right - margin.left)} height={bottom - margin.top} fill="transparent" {...horizontalDrag((x) => onSeek(clamp(timeAt(x), 0, run.duration)))} />
-      </svg>
-    </div>
+    <TimeChart
+      ariaLabel="動能、重力位能與力學能隨時間的變化"
+      xLabel={<>時間 <Sym>t</Sym>（s）</>}
+      yLabel="能量（J）"
+      xDomain={[0, run.duration]}
+      yDomain={[0, yMax]}
+      series={series}
+      playhead={time}
+      onSeek={onSeek}
+      height={ENERGY_CHART_HEIGHT}
+      background={initialLine}
+    />
   )
 }
 
@@ -465,10 +231,10 @@ export function ForceChart({ run, frame, axis, canPush, ariaLabel, yLabel, negat
   }
 
   return (
-    <div ref={containerRef} className="circle-chart-box">
+    <div ref={containerRef} className="lab-chart-box">
       <svg width="100%" height={height} role="img" aria-label={ariaLabel}>
         {showNegative && !canPush && <rect x={margin.left} y={yFor(0)} width={Math.max(0, right - margin.left)} height={bottom - yFor(0)} fill="var(--lab-grid)" fillOpacity={0.7} />}
-        <Axes width={width} height={height} margin={margin} xFor={xFor} yFor={yFor} xTicks={ticks} yTicks={niceTicks(yDomain[0], yDomain[1], 5)} xLabel={<>角位置 <Sym>θ</Sym></>} yLabel={yLabel} xTickLabel={tickLabel} />
+        <ChartFrame width={width} height={height} margin={margin} xFor={xFor} yFor={yFor} xTicks={ticks} yTicks={niceTicks(yDomain[0], yDomain[1], 5)} xLabel={<>角位置 <Sym>θ</Sym></>} yLabel={yLabel} xTickLabel={tickLabel} />
         {showNegative && <text x={(margin.left + right) / 2} y={bottom - 6} textAnchor="middle" fontSize="11" fill="var(--lab-muted)">{negativeNote}</text>}
         {run.forceContinuation.length > 1 && <path d={tracePath(run.forceContinuation, xFor, yFor)} fill="none" stroke={COLOR_FORCE} strokeWidth={2} strokeDasharray="5 5" strokeOpacity={0.7} />}
         {run.forceTrace.map((stroke, index) => <path key={index} d={tracePath(stroke, xFor, yFor)} fill="none" stroke={COLOR_FORCE} strokeWidth={2.5} strokeLinejoin="round" />)}
@@ -501,12 +267,21 @@ export function RunNote({ run, scene }: { run: MotionRun; scene: SceneKind }) {
       note = run.leaveAngle > 1e-6
         ? <>小球在 <AngleTex angle={run.leaveAngle} fromTop />時離開軌道，改作拋體運動，模擬到落地為止。</>
         : <>小球一出發就離開軌道，改作拋體運動，模擬到落地為止。</>
+    } else if (scene === 'half') {
+      note = <>{passes || '小球'}在 <AngleTex angle={run.leaveAngle} /> 時離開軌道，改作拋體運動{conserved}，模擬到小球落地或撞回軌道為止。</>
     } else {
       note = <>{passes || '小球'}在 <AngleTex angle={run.leaveAngle} /> 時離開軌道，改作拋體運動{conserved}。小球撞回軌道時會損失力學能，模擬到這裡為止。</>
     }
+  } else if (run.outcome === 'launch' && run.leaveTime !== null) {
+    const top = run.frameAt(run.leaveTime).speed
+    const landing = -run.frameAt(run.duration).x
+    note = <>小球從最高點以 <MathText tex={`v_1 = ${formatValue(top, 2)}\\ \\text{m/s}`} /> 水平拋出，落在最低點左側 <MathText tex={`d = ${formatValue(landing, 2)}\\ \\text{m}`} /> 的地面上，模擬到落地為止。{run.resistance === 0 && <>最高點的速率至少要 <MathText tex="\sqrt{gR}" />，所以 <MathText tex="d" /> 至少是 <MathText tex="2R" />。</>}</>
+  } else if (run.outcome === 'exit' && scene === 'half') {
+    note = '小球沒有到達最高點，滑回最低點後沿地面往左離開。'
   } else if (run.outcome === 'rest') {
     const end = run.frameAt(run.duration)
-    const place = end.angle !== null ? <>停在 <AngleTex angle={end.angle} fromTop={fromTop} /> 的位置</> : end.x < 0 ? '停在斜坡上' : '停在水平軌道上'
+    const flat = scene === 'half' || end.x > 0 ? '停在水平地面上' : '停在斜坡上'
+    const place = end.angle !== null ? <>停在 <AngleTex angle={end.angle} fromTop={fromTop} /> 的位置</> : flat
     note = run.stuckAtStart
       ? '阻力不小於重力沿軌道方向的分力，小球不會移動。'
       : <>{passes || '小球'}{place}：重力沿軌道方向的分力不大於阻力，小球不再移動。</>
@@ -514,26 +289,4 @@ export function RunNote({ run, scene }: { run: MotionRun; scene: SceneKind }) {
     note = `${passes ? `小球已通過最高點 ${run.topPasses} 次，` : '小球'}仍在運動，這裡只模擬前 ${TIME_LIMIT} 秒。`
   }
   return note ? <p className="circle-run-note">{note}</p> : null
-}
-
-type TimelineBarProps = {
-  position: number
-  length: number
-  looping: boolean
-  playing: boolean
-  onToggle: () => void
-  onRewind: () => void
-  onSeek: (position: number) => void
-}
-
-export function TimelineBar({ position, length, looping, playing, onToggle, onRewind, onSeek }: TimelineBarProps) {
-  const finished = !looping && position >= length
-  return (
-    <div className="circle-timeline">
-      <button onClick={onToggle}>{playing ? '暫停' : finished ? '重播' : '播放'}</button>
-      <button className="lab-secondary" onClick={onRewind}>回到起點</button>
-      <input type="range" aria-label="時間軸" min={0} max={1} step={0.001} value={length > 0 ? position / length : 0} onChange={(event) => onSeek(Number(event.target.value) * length)} />
-      <span className="circle-time"><MathText tex="t" /> = {position.toFixed(2)} s</span>
-    </div>
-  )
 }

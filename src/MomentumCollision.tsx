@@ -1,8 +1,9 @@
 import { useMemo, useState } from 'react'
 import MathText from './MathText'
-import { Arrow, Cart, CART_BODY_CENTER, ChartHeading, COLOR_A, COLOR_B, COLOR_HEAT, COLOR_SPRING, COLOR_TOTAL, LabSlider, Legend, LegendItem, Ruler, Sym, TimeChart, TimelineBar, type OpenHelp, type TimeSeries } from './MomentumShared'
-import { clamp, formatChange, formatValue, linearScale, snap } from './momentumChartUtils'
-import { horizontalDrag, useElementWidth, useTimeline } from './momentumHooks'
+import { ChartHeading, Legend, LegendItem, Slider, Sym, TimeChart, TimelineBar, type TimeSeries } from './LabShared'
+import { Arrow, Cart, CART_BODY_CENTER, COLOR_A, COLOR_B, COLOR_HEAT, COLOR_SPRING, COLOR_TOTAL, Ruler, type OpenHelp } from './MomentumShared'
+import { clamp, formatChange, formatValue, linearScale, snap } from './chartUtils'
+import { horizontalDrag, useElementWidth, usePlayback } from './labHooks'
 import { BUMPER_LENGTH, CART_WIDTH, CONTACT_PLAYBACK_SECONDS, playbackLength, playbackToTime, solveCollision, timeToPlayback, TRACK_LENGTH, type CollisionFrame, type CollisionInput, type CollisionRun } from './momentumPhysics'
 
 const MASS_RANGE = { min: 1, max: 6, step: 0.5 }
@@ -86,10 +87,10 @@ function CollisionStage({ run, frame, time, settings, editable, slowMotion, onVe
   ]
 
   return (
-    <div className="momentum-stage" ref={stageRef}>
-      <div className="momentum-stage-top">
+    <div className="lab-stage" ref={stageRef}>
+      <div className="lab-stage-top">
         <VelocityReadout color={COLOR_A} name="A 車" value={frame.velocityA} />
-        {slowMotion && <span className="momentum-chip">慢動作</span>}
+        {slowMotion && <span className="lab-chip">慢動作</span>}
         <VelocityReadout color={COLOR_B} name="B 車" value={frame.velocityB} />
       </div>
       <svg width="100%" height={STAGE_HEIGHT} role="img" aria-label="兩台滑車在軌道上碰撞">
@@ -112,7 +113,7 @@ function CollisionStage({ run, frame, time, settings, editable, slowMotion, onVe
         <Arrow from={xA} to={xA + frame.velocityA * arrowScale} y={ARROW_Y_A} color={COLOR_A} />
         <Arrow from={xB} to={xB + frame.velocityB * arrowScale} y={ARROW_Y_B} color={COLOR_B} />
         {editable && handles.map((handle) => (
-          <g key={handle.key} className="momentum-drag" {...horizontalDrag(handle.onDrag)}>
+          <g key={handle.key} className="lab-drag" {...horizontalDrag(handle.onDrag)}>
             <circle cx={handle.x} cy={handle.y} r={20} fill="transparent" />
             <circle cx={handle.x} cy={handle.y} r={7} fill={handle.color} stroke="var(--lab-surface)" strokeWidth={2} />
           </g>
@@ -135,7 +136,7 @@ function MomentumVectors({ frame, domain }: { frame: CollisionFrame; domain: [nu
   const rowY = (index: number) => (index + 0.5) * VECTOR_ROW_HEIGHT
 
   return (
-    <div ref={containerRef} className="momentum-chart-box">
+    <div ref={containerRef} className="lab-chart-box">
       <svg width="100%" height={height} role="img" aria-label={`A 車動量 ${formatValue(frame.momentumA)}，B 車動量 ${formatValue(frame.momentumB)}，總動量 ${formatValue(total)}`}>
         <line x1={xFor(0)} x2={xFor(0)} y1={0} y2={height} stroke="var(--lab-axis)" />
         <line x1={xFor(frame.momentumA)} x2={xFor(frame.momentumA)} y1={rowY(0)} y2={rowY(1)} stroke="var(--lab-axis)" strokeOpacity={0.6} />
@@ -203,7 +204,7 @@ function MomentumCollision({ active, onHelp }: { active: boolean; onHelp: OpenHe
   const [preset, setPreset] = useState(CUSTOM_PRESET)
   const run = useMemo(() => solveCollision(settings), [settings])
   const length = playbackLength(run)
-  const timeline = useTimeline(length, active)
+  const timeline = usePlayback(length, active)
   const time = playbackToTime(run, timeline.position)
   const frame = run.frameAt(time)
   const before = run.frameAt(0)
@@ -268,28 +269,28 @@ function MomentumCollision({ active, onHelp }: { active: boolean; onHelp: OpenHe
             {Object.entries(PRESETS).map(([name, item]) => <option key={name} value={name}>{item.label}</option>)}
           </select>
         </div>
-        <LabSlider label="A 車質量" {...MASS_RANGE} unit="kg" value={settings.massA} onChange={(next) => update({ massA: next })} />
-        <LabSlider label="A 車速度" min={-VELOCITY_LIMIT} max={VELOCITY_LIMIT} step={VELOCITY_STEP} unit="m/s" value={settings.velocityA} onChange={(next) => update({ velocityA: next })} />
-        <LabSlider label="B 車質量" {...MASS_RANGE} unit="kg" value={settings.massB} onChange={(next) => update({ massB: next })} />
-        <LabSlider label="B 車速度" min={-VELOCITY_LIMIT} max={VELOCITY_LIMIT} step={VELOCITY_STEP} unit="m/s" value={settings.velocityB} onChange={(next) => update({ velocityB: next })} />
-        <LabSlider label={<>恢復係數 <MathText tex="e" /></>} min={0} max={1} step={0.05} digits={2} value={settings.restitution} onChange={(next) => update({ restitution: next })} />
+        <Slider label="A 車質量" {...MASS_RANGE} unit="kg" value={settings.massA} onChange={(next) => update({ massA: next })} />
+        <Slider label="A 車速度" min={-VELOCITY_LIMIT} max={VELOCITY_LIMIT} step={VELOCITY_STEP} unit="m/s" value={settings.velocityA} onChange={(next) => update({ velocityA: next })} />
+        <Slider label="B 車質量" {...MASS_RANGE} unit="kg" value={settings.massB} onChange={(next) => update({ massB: next })} />
+        <Slider label="B 車速度" min={-VELOCITY_LIMIT} max={VELOCITY_LIMIT} step={VELOCITY_STEP} unit="m/s" value={settings.velocityB} onChange={(next) => update({ velocityB: next })} />
+        <Slider label={<>恢復係數 <MathText tex="e" /></>} min={0} max={1} step={0.05} digits={2} value={settings.restitution} onChange={(next) => update({ restitution: next })} />
         <button className="lab-secondary" onClick={reset}>重設</button>
         <p className="lab-note">在起點時，可以直接拖曳滑車上方箭頭的圓點來改變速度。把恢復係數從 1 慢慢調到 0，比較總動量和總動能的變化。</p>
       </aside>
       <section className="lab-plots">
-        <div className="lab-chart momentum-stage-card">
-          <ChartHeading title="碰撞軌道" help="track" onHelp={onHelp}><span className="momentum-chip">{run.collides ? collisionKind(settings.restitution) : '沒有碰撞'}</span></ChartHeading>
+        <div className="lab-chart lab-stage-card">
+          <ChartHeading title="碰撞軌道" help="track" onHelp={onHelp}><span className="lab-chip">{run.collides ? collisionKind(settings.restitution) : '沒有碰撞'}</span></ChartHeading>
           <CollisionStage run={run} frame={frame} time={time} settings={settings} editable={editable} slowMotion={slowMotion} onVelocityChange={update} />
           <TimelineBar position={timeline.position} length={length} playing={timeline.playing} time={time} onToggle={timeline.toggle} onRewind={timeline.rewind} onSeek={seek} />
         </div>
-        <div className="momentum-chart-pair">
+        <div className="lab-chart-pair">
           <div className="lab-chart">
-            <ChartHeading title="動量" help="collisionMomentum" onHelp={onHelp}><span className="momentum-caption">單位：kg·m/s，向右為正</span></ChartHeading>
+            <ChartHeading title="動量" help="collisionMomentum" onHelp={onHelp}><span className="lab-caption">單位：kg·m/s，向右為正</span></ChartHeading>
             <div className="momentum-readout-block"><MomentumVectors frame={frame} domain={vectorDomain} /></div>
             <TimeChart ariaLabel="碰撞前後兩車動量與總動量隨時間的變化" xLabel={xLabel} yLabel="動量（kg·m/s）" xDomain={xDomain} yDomain={momentumDomain} series={series.momentum} playhead={playhead} onSeek={(value) => seek(timeToPlayback(run, value + origin))} />
           </div>
           <div className="lab-chart">
-            <ChartHeading title="動能" help="collisionEnergy" onHelp={onHelp}><span className="momentum-caption">單位：J</span></ChartHeading>
+            <ChartHeading title="動能" help="collisionEnergy" onHelp={onHelp}><span className="lab-caption">單位：J</span></ChartHeading>
             <div className="momentum-readout-block">
               <EnergyBar frame={frame} total={run.totalEnergy} />
               <Legend>

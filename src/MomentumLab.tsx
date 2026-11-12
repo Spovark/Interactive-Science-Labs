@@ -1,4 +1,5 @@
 import { useState, type ReactNode } from 'react'
+import { HelpDialog, LabTabs } from './LabShared'
 import MathText from './MathText'
 import MomentumBasics from './MomentumBasics'
 import MomentumCollision from './MomentumCollision'
@@ -69,14 +70,12 @@ function MomentumLab() {
       <main className="lab-main">
         <h1>動能與動量</h1>
         <p className="lab-intro">拖曳滑車和圖上的點，觀察動量和動能在運動與碰撞中如何變化。</p>
-        <nav className="momentum-tabs" aria-label="實驗主題">
-          {SCENES.map((item) => <button key={item.id} className="momentum-tab" aria-current={scene === item.id ? 'true' : undefined} onClick={() => setScene(item.id)}>{item.label}</button>)}
-        </nav>
-        <div className="lab-layout momentum-scene" hidden={scene !== 'basics'}><MomentumBasics active={scene === 'basics'} onHelp={setHelpTopic} /></div>
-        <div className="lab-layout momentum-scene" hidden={scene !== 'push'}><MomentumPush active={scene === 'push'} onHelp={setHelpTopic} /></div>
-        <div className="lab-layout momentum-scene" hidden={scene !== 'collision'}><MomentumCollision active={scene === 'collision'} onHelp={setHelpTopic} /></div>
+        <LabTabs tabs={SCENES} value={scene} onChange={setScene} />
+        <div className="lab-layout lab-scene" hidden={scene !== 'basics'}><MomentumBasics active={scene === 'basics'} onHelp={setHelpTopic} /></div>
+        <div className="lab-layout lab-scene" hidden={scene !== 'push'}><MomentumPush active={scene === 'push'} onHelp={setHelpTopic} /></div>
+        <div className="lab-layout lab-scene" hidden={scene !== 'collision'}><MomentumCollision active={scene === 'collision'} onHelp={setHelpTopic} /></div>
       </main>
-      {helpTopic && <div className="lab-overlay" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) setHelpTopic(null) }}><section className="lab-dialog" role="dialog" aria-modal="true" aria-labelledby="momentum-help-title"><h2 id="momentum-help-title">說明</h2>{HELP_CONTENT[helpTopic].map((paragraph, index) => <p key={index}>{paragraph}</p>)}<button className="lab-secondary" onClick={() => setHelpTopic(null)}>關閉</button></section></div>}
+      {helpTopic && <HelpDialog paragraphs={HELP_CONTENT[helpTopic]} onClose={() => setHelpTopic(null)} />}
     </div>
   )
 }

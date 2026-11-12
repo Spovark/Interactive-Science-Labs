@@ -13,50 +13,13 @@
   }
 }
 
-.momentum-tabs { display: flex; gap: 4px; width: fit-content; max-width: 100%; box-sizing: border-box; margin-bottom: 14px; padding: 4px; border: 1px solid var(--lab-border); border-radius: 12px; background: var(--lab-surface); }
-.lab-page .momentum-tab { padding: 7px 16px; background: transparent; color: var(--lab-muted); white-space: nowrap; }
-.lab-page .momentum-tab[aria-current='true'] { background: var(--lab-accent); color: var(--lab-surface); }
-.momentum-scene[hidden] { display: none; }
-
-.momentum-slider-value { color: var(--lab-muted); font-weight: 600; font-variant-numeric: tabular-nums; white-space: nowrap; }
-.momentum-field-label { display: block; margin-bottom: 7px; font-size: .91rem; font-weight: 650; }
-.momentum-button-row { display: flex; flex-wrap: wrap; gap: 8px; }
-.lab-page button:disabled { opacity: .5; cursor: not-allowed; }
-.momentum-segmented { display: grid; grid-template-columns: 1fr 1fr; gap: 4px; padding: 3px; border-radius: 10px; background: var(--lab-metric-bg); }
-.lab-page .momentum-segmented button { padding: 6px 8px; background: transparent; color: var(--lab-muted); }
-.lab-page .momentum-segmented button[aria-pressed='true'] { background: var(--lab-accent); color: var(--lab-surface); }
-
-.momentum-heading-side { display: flex; align-items: center; gap: 8px; min-height: 28px; }
-.momentum-chip { padding: 2px 10px; border-radius: 999px; background: var(--lab-status-bg); color: var(--lab-status-text); font-size: .78rem; font-weight: 650; white-space: nowrap; }
-.momentum-caption { color: var(--lab-muted); font-size: .78rem; white-space: nowrap; }
-.lab-page .momentum-small-button { padding: 4px 10px; font-size: .8rem; }
-
-.momentum-stage { position: relative; margin-top: 10px; overflow: hidden; border-radius: 10px; background: var(--lab-metric-bg); }
-.momentum-stage svg, .momentum-chart-box svg { display: block; }
-.momentum-stage-top { position: absolute; inset: 9px 12px auto; display: flex; align-items: center; justify-content: space-between; gap: 8px; color: var(--lab-text); font-size: .82rem; pointer-events: none; }
 .momentum-readout { display: inline-flex; align-items: center; gap: 5px; white-space: nowrap; }
 .momentum-readout i { width: 8px; height: 8px; border-radius: 50%; }
-.momentum-readout b, .momentum-legend b { font-variant-numeric: tabular-nums; }
-
-.momentum-timeline { display: flex; align-items: center; gap: 8px; margin-top: 10px; }
-.momentum-timeline input[type=range] { flex: 1; min-width: 40px; accent-color: var(--lab-accent); }
-.momentum-timeline button { flex: none; }
-.momentum-time { flex: none; min-width: 74px; color: var(--lab-muted); font-size: .85rem; font-variant-numeric: tabular-nums; text-align: right; white-space: nowrap; }
 
 .momentum-metrics { margin-top: 10px; }
 .momentum-metrics > div { flex: 1; }
 .momentum-metrics b { display: inline-block; margin-right: 10px; font-size: 1.15rem; }
 .momentum-metrics small { color: var(--lab-muted); font-size: .8rem; font-variant-numeric: tabular-nums; white-space: nowrap; }
-
-.momentum-chart-pair { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(310px, 100%), 1fr)); gap: 14px; }
-.momentum-chart-box { width: 100%; margin-top: 8px; }
-.momentum-drag { cursor: ew-resize; touch-action: pan-y; }
-.momentum-legend { display: flex; flex-wrap: wrap; gap: 3px 14px; margin-top: 8px; color: var(--lab-muted); font-size: .8rem; }
-.momentum-legend-item { display: inline-flex; align-items: center; gap: 5px; white-space: nowrap; }
-.momentum-legend b { color: var(--lab-text); font-weight: 650; }
-.momentum-key { flex: none; width: 13px; height: 10px; border-radius: 2px; background: currentColor; }
-.momentum-key.is-line { height: 3px; border-radius: 0; }
-.momentum-key.is-dashed { height: 0; border-top: 2px dashed currentColor; border-radius: 0; background: none; }
 
 .momentum-readout-block { min-height: 92px; }
 .momentum-energy-bar { display: flex; gap: 2px; height: 24px; margin-top: 12px; border-radius: 4px; background: var(--lab-metric-bg); }
@@ -69,20 +32,10 @@
 .momentum-empty { margin: 8px 0 0; color: var(--lab-muted); }
 
 @media (max-width: 760px) {
-  .momentum-scene { grid-template-columns: minmax(0, 1fr); }
-  .momentum-scene > .lab-plots { display: contents; }
-  .momentum-scene > .lab-panel { order: 2; position: static; max-height: none; overflow: visible; }
-  .momentum-stage-card { order: 1; }
-  .momentum-chart-pair { order: 3; }
   .momentum-summary { order: 4; }
 }
 
 @media (max-width: 560px) {
-  .momentum-chart-pair { gap: 8px; }
-  .lab-page .momentum-tab { padding: 7px 12px; }
-  .momentum-timeline { flex-wrap: wrap; }
-  .momentum-timeline input[type=range] { order: 3; flex-basis: 100%; }
-  .momentum-time { margin-left: auto; }
   .momentum-table { font-size: .8rem; }
   .momentum-table th, .momentum-table td { padding: 5px 4px; }
 }

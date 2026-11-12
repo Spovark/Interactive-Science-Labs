@@ -17,24 +17,38 @@ function runFrames(onFrame: (seconds: number) => boolean) {
   return () => cancelAnimationFrame(frame)
 }
 
-export function useElementWidth<T extends Element>(initialWidth: number) {
+export function useElementSize<T extends Element>(initialWidth: number) {
   const ref = useRef<T>(null)
-  const [width, setWidth] = useState(initialWidth)
+  const [size, setSize] = useState({ width: initialWidth, height: 0 })
 
   useEffect(() => {
     if (!ref.current) return
     const observer = new ResizeObserver(([entry]) => {
-      // Hidden tabs report zero; keep the last real width for them.
-      if (entry.contentRect.width > 0) setWidth(entry.contentRect.width)
+      const { width, height } = entry.contentRect
+      // Hidden tabs report zero; keep the last real size for them.
+      if (width > 0) setSize({ width, height })
     })
     observer.observe(ref.current)
     return () => observer.disconnect()
   }, [])
 
+  return [ref, size.width, size.height] as const
+}
+
+export function useElementWidth<T extends Element>(initialWidth: number) {
+  const [ref, width] = useElementSize<T>(initialWidth)
   return [ref, width] as const
 }
 
-export function useTimeline(length: number, active: boolean) {
+type PlaybackOptions = {
+  // Starts again from the beginning instead of stopping at the end.
+  looping?: boolean
+  // Seconds of timeline per second of real time.
+  rate?: number
+}
+
+// A timeline of `length` seconds that plays while `active`, starting on its own unless motion is reduced.
+export function usePlayback(length: number, active: boolean, { looping = false, rate = 1 }: PlaybackOptions = {}) {
   const [position, setPosition] = useState(0)
   const [playing, setPlaying] = useState(() => !prefersReducedMotion())
   const positionRef = useRef(0)
@@ -45,16 +59,23 @@ export function useTimeline(length: number, active: boolean) {
   }, [])
 
   useEffect(() => {
-    if (!playing || !active) return
+    if (!playing || !active || length <= 0) return
     return runFrames((seconds) => {
-      const next = Math.min(length, positionRef.current + seconds)
+      let next = positionRef.current + seconds * rate
+      if (next >= length) {
+        if (!looping) {
+          positionRef.current = length
+          setPosition(length)
+          setPlaying(false)
+          return false
+        }
+        next %= length
+      }
       positionRef.current = next
       setPosition(next)
-      if (next < length) return true
-      setPlaying(false)
-      return false
+      return true
     })
-  }, [active, length, playing])
+  }, [active, length, looping, playing, rate])
 
   const pause = useCallback(() => setPlaying(false), [])
 
@@ -96,11 +117,18 @@ export function useWrappingPosition(start: number, speed: number, span: number, 
   return position
 }
 
-// Reports the pointer's x position in SVG pixels for as long as it is held down.
-export function horizontalDrag(onDrag: (x: number) => void) {
+function svgPoint(event: PointerEvent<SVGElement>) {
+  const svg = event.currentTarget.ownerSVGElement
+  if (!svg) return null
+  const box = svg.getBoundingClientRect()
+  return { x: event.clientX - box.left, y: event.clientY - box.top }
+}
+
+// Reports the pointer position in SVG pixels for as long as it is held down.
+export function pointerDrag(onDrag: (x: number, y: number) => void) {
   const report = (event: PointerEvent<SVGElement>) => {
-    const svg = event.currentTarget.ownerSVGElement
-    if (svg) onDrag(event.clientX - svg.getBoundingClientRect().left)
+    const point = svgPoint(event)
+    if (point) onDrag(point.x, point.y)
   }
   return {
     onPointerDown: (event: PointerEvent<SVGElement>) => {
@@ -111,4 +139,9 @@ export function horizontalDrag(onDrag: (x: number) => void) {
       if (event.currentTarget.hasPointerCapture(event.pointerId)) report(event)
     },
   }
+}
+
+// Reports only the pointer's x position in SVG pixels.
+export function horizontalDrag(onDrag: (x: number) => void) {
+  return pointerDrag((x) => onDrag(x))
 }
